@@ -7,8 +7,6 @@ from typing import Any
 
 import requests
 
-from flight_tracker.advice import rating
-
 
 AIRLINE_DISPLAY_NAMES = {
     "星宇": "星宇航空",
@@ -46,13 +44,46 @@ def display_clock(value: str | None) -> str:
         return value[11:16] if len(value) >= 16 else "??:??"
 
 
+def display_history_date(value: str | None) -> str:
+    if not value:
+        return "??/??"
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").strftime("%m/%d")
+    except ValueError:
+        return value[5:].replace("-", "/")
+
+
 def history_line(item: dict[str, Any]) -> str:
     price = item.get("price", "無資料")
     clock = display_clock(item.get("fetched_at"))
-    return f"{item['date'][5:].replace('-', '/')} {price} ({clock})"
+    return f"{display_history_date(item.get('date'))} {price} ({clock})"
 
 
-def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[dict[str, Any]], summary: dict[str, Any], yesterday: int | None) -> str:
+def lowest_text(record: dict[str, Any] | None, fallback: int | None) -> str:
+    if not record:
+        return str(fallback or "無資料")
+    return f"{record['price']}（{display_history_date(record.get('date'))} {display_clock(record.get('fetched_at'))}）"
+
+
+def change_text(current: int, previous_day_lowest: int | None) -> str:
+    if previous_day_lowest is None:
+        return ""
+    difference = current - previous_day_lowest
+    percentage = abs(difference) / previous_day_lowest * 100 if previous_day_lowest else 0
+    if difference < 0:
+        return f"較前一日最低下降 {abs(difference)} 元（{percentage:.1f}%）"
+    if difference > 0:
+        return f"較前一日最低上漲 {difference} 元（{percentage:.1f}%）"
+    return "與前一日最低持平"
+
+
+def build_message(
+    route: dict[str, Any],
+    quote: dict[str, Any],
+    history: list[dict[str, Any]],
+    summary: dict[str, Any],
+    yesterday: int | None,
+) -> str:
     current = int(quote["price"])
     fetched_at = display_time(quote.get("fetched_at"))
     departure_date = quote.get("departure_date") or "未設定"
@@ -61,10 +92,11 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
     outbound_time = quote.get("outbound_time") or "未取得"
     return_airline = display_airline(quote.get("return_airline") or quote.get("airline"))
     return_time = quote.get("return_time") or "未取得"
-    stars, advice = rating(current, summary["average"], summary["lowest"], route.get("max_price"))
-    history_lines = "\n".join(history_line(item) for item in history[-10:])
     current_daily_low = summary["current"] or current
-    daily_low_line = f"\n\u4eca\u65e5\u6700\u4f4e {current_daily_low}" if current_daily_low != current else ""
+    daily_low_line = f"\n今日最低:{current_daily_low}" if current_daily_low != current else ""
+    change_line = change_text(current, yesterday)
+    change_block = f"\n{change_line}\n" if change_line else "\n"
+    history_lines = "\n".join(history_line(item) for item in sorted(history, key=lambda item: item["date"])[-7:])
 
     return (
         f"查詢時間 {fetched_at}\n\n"
@@ -72,16 +104,14 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
         f"{departure_date} ~ {return_date}\n\n"
         f"去程 {outbound_airline} {outbound_time}\n"
         f"回程 {return_airline} {return_time}\n\n"
-        f"金額:{current}\n"
-        f"{daily_low_line}\n\n"
-        f"----------------------------\n"
+        f"金額:{current}"
+        f"{daily_low_line}\n"
+        f"{change_block}"
         f"最近30天\n"
         f"平均 {summary['average'] or '無資料'}\n"
-        f"最低 {summary['lowest'] or '無資料'}\n"
+        f"最低 {lowest_text(summary.get('lowest_record'), summary.get('lowest'))}\n"
         f"目前 {current}\n\n"
-        f"{stars}\n"
-        f"{advice}\n\n"
-        f"歷史價格\n"
+        f"近7日每日最低\n"
         f"{history_lines}"
     )
 

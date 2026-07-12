@@ -5,7 +5,16 @@ import json
 from typing import Any
 
 from flight_tracker.config import load_config
-from flight_tracker.history import append_daily_quote, load_history, matching_history, previous_price, stats, tracking_key
+from flight_tracker.history import (
+    append_daily_quote,
+    append_query_csv,
+    load_history,
+    matching_history,
+    previous_price,
+    stats,
+    tracking_key,
+    update_daily_lowest_csv,
+)
 from flight_tracker.notify import build_message, send_line_message, should_alert
 from flight_tracker.sources import SOURCE_REGISTRY
 
@@ -69,6 +78,8 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
         history = append_daily_quote(route["id"], quote)
         query_history = matching_history(history, quote)
         saved_quote = query_history[-1]
+        append_query_csv(route, quote, saved_quote)
+        update_daily_lowest_csv(route, saved_quote)
         is_new_daily_low = (
             not before_today
             or before_today.get("date") != saved_quote.get("date")
