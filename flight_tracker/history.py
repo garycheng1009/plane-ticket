@@ -22,12 +22,38 @@ def load_history(route_id: str) -> list[dict[str, Any]]:
         return json.load(handle)
 
 
+def tracking_key(quote: dict[str, Any]) -> str:
+    return "|".join(
+        str(quote.get(key) or "")
+        for key in ["origin", "destination", "departure_date", "return_date", "direct"]
+    )
+
+
+def matching_history(history: list[dict[str, Any]], quote: dict[str, Any]) -> list[dict[str, Any]]:
+    key = tracking_key(quote)
+    return [item for item in history if item.get("tracking_key") == key]
+
+
 def append_daily_quote(route_id: str, quote: dict[str, Any], today: str | None = None) -> list[dict[str, Any]]:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     day = today or date.today().isoformat()
     history = load_history(route_id)
-    entry = {"date": day, **quote}
-    history = [item for item in history if item.get("date") != day]
+    entry = {"date": day, **quote, "tracking_key": tracking_key(quote)}
+    existing = next(
+        (
+            item
+            for item in history
+            if item.get("date") == day and item.get("tracking_key") == entry["tracking_key"]
+        ),
+        None,
+    )
+    if existing and int(existing.get("price", 0)) <= int(entry.get("price", 0)):
+        entry = existing
+    history = [
+        item
+        for item in history
+        if not (item.get("date") == day and item.get("tracking_key") == entry["tracking_key"])
+    ]
     history.append(entry)
     history.sort(key=lambda item: item["date"])
     with history_path(route_id).open("w", encoding="utf-8") as handle:

@@ -36,6 +36,21 @@ def display_airline(value: str | None) -> str:
     return AIRLINE_DISPLAY_NAMES.get(value, value)
 
 
+def display_clock(value: str | None) -> str:
+    if not value:
+        return "??:??"
+    try:
+        return datetime.fromisoformat(value).strftime("%H:%M")
+    except ValueError:
+        return value[11:16] if len(value) >= 16 else "??:??"
+
+
+def history_line(item: dict[str, Any]) -> str:
+    price = item.get("price", "無資料")
+    clock = display_clock(item.get("fetched_at"))
+    return f"{item['date'][5:].replace('-', '/')} {price} ({clock})"
+
+
 def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[dict[str, Any]], summary: dict[str, Any], yesterday: int | None) -> str:
     current = int(quote["price"])
     fetched_at = display_time(quote.get("fetched_at"))
@@ -46,7 +61,8 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
     return_airline = display_airline(quote.get("return_airline") or quote.get("airline"))
     return_time = quote.get("return_time") or "未取得"
     stars, advice = rating(current, summary["average"], summary["lowest"], route.get("max_price"))
-    history_lines = "\n".join(f"{item['date'][5:].replace('-', '/')} {item['price']}" for item in history[-10:])
+    history_lines = "\n".join(history_line(item) for item in history[-10:])
+    current_daily_low = summary["current"] or current
 
     return (
         f"查詢時間 {fetched_at}\n\n"
@@ -54,12 +70,12 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
         f"{departure_date} ~ {return_date}\n\n"
         f"去程 {outbound_airline} {outbound_time}\n"
         f"回程 {return_airline} {return_time}\n\n"
-        f"金額:{current}\n\n"
+        f"金額:{current_daily_low}\n\n"
         f"----------------------------\n"
         f"最近30天\n"
         f"平均 {summary['average'] or '無資料'}\n"
         f"最低 {summary['lowest'] or '無資料'}\n"
-        f"目前 {summary['current'] or current}\n\n"
+        f"目前 {current_daily_low}\n\n"
         f"{stars}\n"
         f"{advice}\n\n"
         f"歷史價格\n"

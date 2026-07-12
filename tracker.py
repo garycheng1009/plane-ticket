@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from flight_tracker.config import load_config
-from flight_tracker.history import append_daily_quote, previous_price, stats
+from flight_tracker.history import append_daily_quote, load_history, matching_history, previous_price, stats, tracking_key
 from flight_tracker.notify import build_message, send_line_message, should_alert
 from flight_tracker.sources import SOURCE_REGISTRY
 
@@ -60,11 +60,24 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
             results.append({"route": route["name"], "status": "no_quote", "errors": errors})
             continue
 
+        before_history = load_history(route["id"])
+        quote_key = tracking_key(quote)
+        before_same_query = [item for item in before_history if item.get("tracking_key") == quote_key]
+        before_today = next((item for item in before_same_query if item.get("date")), None)
+        if before_same_query:
+            before_today = before_same_query[-1]
         history = append_daily_quote(route["id"], quote)
-        summary = stats(history)
-        yesterday = previous_price(history)
-        message = build_message(route, quote, history, summary, yesterday)
-        alert = should_alert(config, route, int(quote["price"]), yesterday)
+        query_history = matching_history(history, quote)
+        saved_quote = query_history[-1]
+        is_new_daily_low = (
+            not before_today
+            or before_today.get("date") != saved_quote.get("date")
+            or int(quote["price"]) < int(before_today.get("price", 0))
+        )
+        summary = stats(query_history)
+        yesterday = previous_price(query_history)
+        message = build_message(route, saved_quote, query_history, summary, yesterday)
+        alert = is_new_daily_low and should_alert(config, route, int(saved_quote["price"]), yesterday)
         if alert and not dry_run:
             send_line_message(message, config)
         results.append(
@@ -72,7 +85,9 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
                 "route": route["name"],
                 "status": "ok",
                 "alert": alert,
+                "new_daily_low": is_new_daily_low,
                 "quote": quote,
+                "daily_low": saved_quote,
                 "summary": summary,
                 "message": message,
                 "errors": errors,
