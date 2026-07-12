@@ -1,0 +1,18 @@
+[
+  {
+    "date": "2026-07-12",
+    "source": "eztravel",
+    "route_id": "hokkaido",
+    "route_name": "北海道",
+    "origin": "TPE",
+    "destination": "CTS",
+    "airline": "長榮",
+    "price": 32218,
+    "currency": "TWD",
+    "direct": true,
+    "outbound_time": null,
+    "return_time": null,
+    "fetched_at": "2026-07-12T08:29:20",
+    "booking_url": "https://flight.eztravel.com.tw/tickets-roundtrip-TPE-CTS/?outbounddate=01%2F09%2F2026&inbounddate=06%2F09%2F2026&dport=&aport=&adults=1&children=0&infants=0&direct=true&cabintype=&airline=&searchbox=s"
+  }
+]

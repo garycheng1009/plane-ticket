@@ -1,0 +1,18 @@
+[
+  {
+    "date": "2026-07-12",
+    "source": "eztravel",
+    "route_id": "fukuoka",
+    "route_name": "福岡",
+    "origin": "TPE",
+    "destination": "FUK",
+    "airline": "華航",
+    "price": 16227,
+    "currency": "TWD",
+    "direct": true,
+    "outbound_time": null,
+    "return_time": null,
+    "fetched_at": "2026-07-12T08:29:55",
+    "booking_url": "https://flight.eztravel.com.tw/tickets-roundtrip-TPE-FUK/?outbounddate=01%2F09%2F2026&inbounddate=06%2F09%2F2026&dport=&aport=&adults=1&children=0&infants=0&direct=true&cabintype=&airline=&searchbox=s"
+  }
+]
