@@ -152,13 +152,12 @@ if st.button("開始查價"):
         quote = result["quote"]
         summary = result["summary"]
         st.success(f"{result['route']}：{quote['airline']} TWD {quote['price']:,}")
-        if not result.get("alert"):
-            if not result.get("new_daily_low"):
-                st.info("這次不是今日最低價，所以不重複發 LINE。")
-            elif dry_run:
-                st.info("目前是測試模式，所以不發 LINE。")
-            else:
-                st.info("這次沒有符合通知條件。")
+        if result.get("line_sent"):
+            st.success("\u2705 LINE \u5df2\u9001\u51fa")
+        elif dry_run:
+            st.info("\u76ee\u524d\u662f\u6e2c\u8a66\u6a21\u5f0f\uff0c\u6240\u4ee5\u672a\u9001 LINE\u3002")
+        elif not config.get("line", {}).get("enabled"):
+            st.info("LINE \u672a\u555f\u7528\uff0c\u6240\u4ee5\u672a\u9001\u51fa\u3002")
         cols = st.columns(3)
         cols[0].metric("目前", f"{summary['current']:,}" if summary["current"] else "-")
         cols[1].metric("30天平均", f"{summary['average']:,}" if summary["average"] else "-")

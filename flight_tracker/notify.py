@@ -63,6 +63,7 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
     stars, advice = rating(current, summary["average"], summary["lowest"], route.get("max_price"))
     history_lines = "\n".join(history_line(item) for item in history[-10:])
     current_daily_low = summary["current"] or current
+    daily_low_line = f"\n\u4eca\u65e5\u6700\u4f4e {current_daily_low}" if current_daily_low != current else ""
 
     return (
         f"查詢時間 {fetched_at}\n\n"
@@ -70,12 +71,13 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
         f"{departure_date} ~ {return_date}\n\n"
         f"去程 {outbound_airline} {outbound_time}\n"
         f"回程 {return_airline} {return_time}\n\n"
-        f"金額:{current_daily_low}\n\n"
+        f"金額:{current}\n"
+        f"{daily_low_line}\n\n"
         f"----------------------------\n"
         f"最近30天\n"
         f"平均 {summary['average'] or '無資料'}\n"
         f"最低 {summary['lowest'] or '無資料'}\n"
-        f"目前 {current_daily_low}\n\n"
+        f"目前 {current}\n\n"
         f"{stars}\n"
         f"{advice}\n\n"
         f"歷史價格\n"

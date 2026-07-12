@@ -76,15 +76,18 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
         )
         summary = stats(query_history)
         yesterday = previous_price(query_history)
-        message = build_message(route, saved_quote, query_history, summary, yesterday)
+        message = build_message(route, quote, query_history, summary, yesterday)
         alert = is_new_daily_low and should_alert(config, route, int(saved_quote["price"]), yesterday)
-        if alert and not dry_run:
+        line_sent = False
+        if not dry_run and config.get("line", {}).get("enabled"):
             send_line_message(message, config)
+            line_sent = True
         results.append(
             {
                 "route": route["name"],
                 "status": "ok",
                 "alert": alert,
+                "line_sent": line_sent,
                 "new_daily_low": is_new_daily_low,
                 "quote": quote,
                 "daily_low": saved_quote,
