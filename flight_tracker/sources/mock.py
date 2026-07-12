@@ -30,6 +30,7 @@ class MockSource(FlightSource):
                 return_date=config["trip"]["return_date"],
                 outbound_time_range=f"{config['trip']['outbound_time'].get('from', '')}-{config['trip']['outbound_time'].get('to', '')}",
                 return_time_range=f"{config['trip']['return_time'].get('from', '')}-{config['trip']['return_time'].get('to', '')}",
+                passengers=passenger_key(config["trip"]),
                 return_airline=random.choice(airlines),
                 outbound_time="08:30",
                 return_time="17:20",
@@ -37,3 +38,12 @@ class MockSource(FlightSource):
                 booking_url="mock://flight-price",
             )
         ]
+
+
+def passenger_key(trip: dict[str, Any]) -> str:
+    passengers = trip.get("passengers") or {}
+    return (
+        f"A{max(1, int(passengers.get('adults', 1)))}"
+        f"C{max(0, int(passengers.get('children', 0)))}"
+        f"I{max(0, int(passengers.get('infants', 0)))}"
+    )

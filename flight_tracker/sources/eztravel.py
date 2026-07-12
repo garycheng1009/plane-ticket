@@ -25,6 +25,24 @@ AIRLINE_ALIASES = {
 ALL_AIRLINE_NAMES = {alias for aliases in AIRLINE_ALIASES.values() for alias in aliases}
 
 
+def display_airline_name(airline: str) -> str:
+    aliases = AIRLINE_ALIASES.get(airline, [airline])
+    return aliases[-1]
+
+
+def passenger_value(trip: dict[str, Any], key: str, default: int) -> int:
+    passengers = trip.get("passengers") or {}
+    return max(0, int(passengers.get(key, default)))
+
+
+def passenger_key(trip: dict[str, Any]) -> str:
+    return (
+        f"A{max(1, passenger_value(trip, 'adults', 1))}"
+        f"C{passenger_value(trip, 'children', 0)}"
+        f"I{passenger_value(trip, 'infants', 0)}"
+    )
+
+
 def eztravel_date(value: str) -> str:
     year, month, day = value.split("-")
     return f"{day}/{month}/{year}"
@@ -108,6 +126,42 @@ def flight_card_options(
     return options
 
 
+def click_matching_choice(page: Any, option: dict[str, Any]) -> bool:
+    airline = display_airline_name(str(option["airline"]))
+    price = f"TWD{int(option['price']):,}"
+    flight_time = str(option["time"])
+    return bool(
+        page.evaluate(
+            """
+            ({ airline, price, flightTime }) => {
+                const buttons = Array.from(document.querySelectorAll('button, a, div, span'))
+                    .filter((el) => (el.textContent || '').trim() === '選擇');
+
+                for (const button of buttons) {
+                    let node = button;
+                    for (let depth = 0; node && depth < 10; depth += 1, node = node.parentElement) {
+                        const text = node.innerText || node.textContent || '';
+                        const selectCount = (text.match(/選擇/g) || []).length;
+                        if (
+                            text.length < 500
+                            && selectCount <= 1
+                            && text.includes(airline)
+                            && text.includes(flightTime)
+                            && text.replace(/\\s+/g, '').includes(price)
+                        ) {
+                            button.click();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            """,
+            {"airline": airline, "price": price, "flightTime": flight_time},
+        )
+    )
+
+
 class EzTravelSource(BrowserSource):
     name = "eztravel"
     start_url = "https://flight.eztravel.com.tw"
@@ -123,9 +177,9 @@ class EzTravelSource(BrowserSource):
                 "inbounddate": eztravel_date(trip["return_date"]),
                 "dport": "",
                 "aport": "",
-                "adults": 1,
-                "children": 0,
-                "infants": 0,
+                "adults": max(1, passenger_value(trip, "adults", 1)),
+                "children": passenger_value(trip, "children", 0),
+                "infants": passenger_value(trip, "infants", 0),
                 "direct": direct,
                 "cabintype": "",
                 "airline": "",
@@ -160,7 +214,9 @@ class EzTravelSource(BrowserSource):
                 final_price = int(best_outbound["price"])
 
                 try:
-                    page.locator("text=選擇").nth(int(best_outbound["choice_index"])).click()
+                    clicked = click_matching_choice(page, best_outbound)
+                    if not clicked:
+                        page.locator("text=選擇").nth(int(best_outbound["choice_index"])).click()
                     page.wait_for_timeout(25000)
                     return_lines = [
                         line.strip()
@@ -195,6 +251,7 @@ class EzTravelSource(BrowserSource):
                         return_date=config["trip"]["return_date"],
                         outbound_time_range=time_range_key(config["trip"].get("outbound_time")),
                         return_time_range=time_range_key(config["trip"].get("return_time")),
+                        passengers=passenger_key(config["trip"]),
                         return_airline=return_airline,
                         outbound_time=best_outbound["time"],
                         return_time=return_time,

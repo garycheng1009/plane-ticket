@@ -40,6 +40,27 @@ return_default = date.fromisoformat(trip.get("return_date", date.today().isoform
 trip["departure_date"] = st.date_input("去程日期", departure_default).isoformat()
 trip["return_date"] = st.date_input("回程日期", return_default).isoformat()
 trip["direct_only"] = st.checkbox("只看直飛", trip.get("direct_only", True))
+passengers = trip.setdefault("passengers", {"adults": 1, "children": 0, "infants": 0})
+
+passenger_cols = st.columns(3)
+passengers["adults"] = passenger_cols[0].number_input(
+    "成人",
+    min_value=1,
+    value=int(passengers.get("adults", 1)),
+    step=1,
+)
+passengers["children"] = passenger_cols[1].number_input(
+    "孩童",
+    min_value=0,
+    value=int(passengers.get("children", 0)),
+    step=1,
+)
+passengers["infants"] = passenger_cols[2].number_input(
+    "嬰兒",
+    min_value=0,
+    value=int(passengers.get("infants", 0)),
+    step=1,
+)
 
 left, right = st.columns(2)
 with left:

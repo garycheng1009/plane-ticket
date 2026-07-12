@@ -11,6 +11,11 @@
     "return_time": {
       "from": "12:00",
       "to": "22:00"
+    },
+    "passengers": {
+      "adults": 1,
+      "children": 0,
+      "infants": 0
     }
   },
   "routes": [

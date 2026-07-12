@@ -33,6 +33,7 @@ def tracking_key(quote: dict[str, Any]) -> str:
             "direct",
             "outbound_time_range",
             "return_time_range",
+            "passengers",
         ]
     )
 
