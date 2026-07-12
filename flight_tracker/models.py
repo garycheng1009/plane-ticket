@@ -15,6 +15,9 @@ class FlightQuote:
     price: int
     currency: str = "TWD"
     direct: bool = True
+    departure_date: str | None = None
+    return_date: str | None = None
+    return_airline: str | None = None
     outbound_time: str | None = None
     return_time: str | None = None
     fetched_at: str = ""

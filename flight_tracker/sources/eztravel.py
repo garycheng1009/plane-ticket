@@ -21,7 +21,6 @@ AIRLINE_ALIASES = {
     "Peach": ["Peach", "樂桃航空"],
 }
 
-
 def eztravel_date(value: str) -> str:
     year, month, day = value.split("-")
     return f"{day}/{month}/{year}"
@@ -33,6 +32,13 @@ def price_from_lines(lines: list[str], start: int) -> int | None:
     if not match:
         return None
     return int(match.group(1).replace(",", ""))
+
+
+def first_time_from_lines(lines: list[str], start: int) -> str | None:
+    for line in lines[start + 1 : start + 6]:
+        if re.fullmatch(r"\d{2}:\d{2}", line):
+            return line
+    return None
 
 
 class EzTravelSource(BrowserSource):
@@ -94,6 +100,16 @@ class EzTravelSource(BrowserSource):
                                 airline=airline,
                                 price=min(prices),
                                 direct=bool(config["trip"].get("direct_only", True)),
+                                departure_date=config["trip"]["departure_date"],
+                                return_date=config["trip"]["return_date"],
+                                outbound_time=first_time_from_lines(
+                                    lines,
+                                    next(
+                                        index
+                                        for index, line in enumerate(lines)
+                                        if line in aliases and price_from_lines(lines, index) == min(prices)
+                                    ),
+                                ),
                                 fetched_at=datetime.now().isoformat(timespec="seconds"),
                                 booking_url=page.url,
                             )

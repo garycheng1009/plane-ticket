@@ -2,45 +2,54 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime
 from typing import Any
 
 import requests
 
-from flight_tracker.advice import rating
+
+AIRLINE_DISPLAY_NAMES = {
+    "星宇": "星宇航空",
+    "長榮": "長榮航空",
+    "華航": "中華航空",
+    "ANA": "全日空",
+    "JAL": "日本航空",
+    "United": "聯合航空",
+    "Peach": "樂桃航空",
+}
+
+
+def display_time(value: str | None) -> str:
+    if not value:
+        return "未取得"
+    try:
+        return datetime.fromisoformat(value).strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return value.replace("T", " ")
+
+
+def display_airline(value: str | None) -> str:
+    if not value:
+        return "未取得"
+    return AIRLINE_DISPLAY_NAMES.get(value, value)
 
 
 def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[dict[str, Any]], summary: dict[str, Any], yesterday: int | None) -> str:
     current = int(quote["price"])
-    delta = None if yesterday is None else current - yesterday
-    if delta is None:
-        headline = f"{route['name']}目前 {current} 元"
-    elif delta < 0:
-        headline = f"{route['name']}便宜 {abs(delta)} 元"
-    elif delta > 0:
-        headline = f"{route['name']}貴 {delta} 元"
-    else:
-        headline = f"{route['name']}價格持平"
-
-    stars, advice = rating(current, summary["average"], summary["lowest"], route.get("max_price"))
-    yesterday_line = f"昨天 {yesterday}" if yesterday is not None else "昨天 無資料"
-    fetched_at = quote.get("fetched_at") or "無資料"
-    history_lines = "\n".join(f"{item['date'][5:].replace('-', '/')} {item['price']}" for item in history[-10:])
+    fetched_at = display_time(quote.get("fetched_at"))
+    departure_date = quote.get("departure_date") or "未設定"
+    return_date = quote.get("return_date") or "未設定"
+    outbound_airline = display_airline(quote.get("airline"))
+    outbound_time = quote.get("outbound_time") or "未取得"
+    return_airline = display_airline(quote.get("return_airline"))
+    return_time = quote.get("return_time") or "未取得"
 
     return (
-        f"{headline}\n\n"
         f"查詢時間 {fetched_at}\n\n"
-        f"{quote.get('airline', '未知航空')}\n"
-        f"{yesterday_line}\n"
-        f"今天 {current}\n"
-        f"──────────────\n\n"
-        f"最近30天\n"
-        f"平均 {summary['average'] or '無資料'}\n"
-        f"最低 {summary['lowest'] or '無資料'}\n"
-        f"目前 {summary['current'] or current}\n\n"
-        f"{stars}\n"
-        f"{advice}\n\n"
-        f"歷史價格\n"
-        f"{history_lines}"
+        f"查詢時間範圍:\n"
+        f"{departure_date} ~ {return_date}\n\n"
+        f"去程 {outbound_airline} {outbound_time}  金額:{current}\n"
+        f"回程 {return_airline} {return_time}  金額:{current}"
     )
 
 
