@@ -1,0 +1,18 @@
+[
+  {
+    "date": "2026-07-12",
+    "source": "eztravel",
+    "route_id": "tokyo",
+    "route_name": "東京",
+    "origin": "TPE",
+    "destination": "TYO",
+    "airline": "華航",
+    "price": 13533,
+    "currency": "TWD",
+    "direct": true,
+    "outbound_time": null,
+    "return_time": null,
+    "fetched_at": "2026-07-12T13:39:37",
+    "booking_url": "https://flight.eztravel.com.tw/tickets-roundtrip-TPE-TYO/?outbounddate=01%2F09%2F2026&inbounddate=06%2F09%2F2026&dport=&aport=&adults=1&children=0&infants=0&direct=true&cabintype=&airline=&searchbox=s"
+  }
+]

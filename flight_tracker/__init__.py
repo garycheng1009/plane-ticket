@@ -1,0 +1,1 @@
+"""Flight price tracker package."""
