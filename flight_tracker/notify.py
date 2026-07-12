@@ -7,6 +7,8 @@ from typing import Any
 
 import requests
 
+from flight_tracker.advice import rating
+
 
 AIRLINE_DISPLAY_NAMES = {
     "星宇": "星宇航空",
@@ -41,15 +43,27 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
     return_date = quote.get("return_date") or "未設定"
     outbound_airline = display_airline(quote.get("airline"))
     outbound_time = quote.get("outbound_time") or "未取得"
-    return_airline = display_airline(quote.get("return_airline"))
+    return_airline = display_airline(quote.get("return_airline") or quote.get("airline"))
     return_time = quote.get("return_time") or "未取得"
+    stars, advice = rating(current, summary["average"], summary["lowest"], route.get("max_price"))
+    history_lines = "\n".join(f"{item['date'][5:].replace('-', '/')} {item['price']}" for item in history[-10:])
 
     return (
         f"查詢時間 {fetched_at}\n\n"
         f"查詢時間範圍:\n"
         f"{departure_date} ~ {return_date}\n\n"
-        f"去程 {outbound_airline} {outbound_time}  金額:{current}\n"
-        f"回程 {return_airline} {return_time}  金額:{current}"
+        f"去程 {outbound_airline} {outbound_time}\n"
+        f"回程 {return_airline} {return_time}\n\n"
+        f"金額:{current}\n\n"
+        f"----------------------------\n"
+        f"最近30天\n"
+        f"平均 {summary['average'] or '無資料'}\n"
+        f"最低 {summary['lowest'] or '無資料'}\n"
+        f"目前 {summary['current'] or current}\n\n"
+        f"{stars}\n"
+        f"{advice}\n\n"
+        f"歷史價格\n"
+        f"{history_lines}"
     )
 
 

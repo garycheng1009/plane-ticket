@@ -83,13 +83,23 @@ class EzTravelSource(BrowserSource):
                     if airline in excluded:
                         continue
                     aliases = AIRLINE_ALIASES.get(airline, [airline])
-                    prices = []
+                    flight_options = []
+                    fallback_prices = []
                     for index, line in enumerate(lines):
                         if line in aliases:
                             price = price_from_lines(lines, index)
                             if price:
-                                prices.append(price)
-                    if prices:
+                                departure_time = first_time_from_lines(lines, index)
+                                if departure_time:
+                                    flight_options.append((price, departure_time, index))
+                                else:
+                                    fallback_prices.append(price)
+                    if flight_options or fallback_prices:
+                        if flight_options:
+                            best_price, departure_time, _ = min(flight_options, key=lambda item: item[0])
+                        else:
+                            best_price = min(fallback_prices)
+                            departure_time = None
                         quotes.append(
                             FlightQuote(
                                 source=self.name,
@@ -98,18 +108,12 @@ class EzTravelSource(BrowserSource):
                                 origin=config["trip"]["origin"],
                                 destination=route["destination"],
                                 airline=airline,
-                                price=min(prices),
+                                price=best_price,
                                 direct=bool(config["trip"].get("direct_only", True)),
                                 departure_date=config["trip"]["departure_date"],
                                 return_date=config["trip"]["return_date"],
-                                outbound_time=first_time_from_lines(
-                                    lines,
-                                    next(
-                                        index
-                                        for index, line in enumerate(lines)
-                                        if line in aliases and price_from_lines(lines, index) == min(prices)
-                                    ),
-                                ),
+                                return_airline=airline,
+                                outbound_time=departure_time,
                                 fetched_at=datetime.now().isoformat(timespec="seconds"),
                                 booking_url=page.url,
                             )
