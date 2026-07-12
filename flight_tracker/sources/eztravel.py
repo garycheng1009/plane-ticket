@@ -45,6 +45,28 @@ def first_time_from_lines(lines: list[str], start: int) -> str | None:
     return None
 
 
+def minutes(value: str) -> int:
+    hour, minute = value.split(":")
+    return int(hour) * 60 + int(minute)
+
+
+def in_time_range(value: str | None, time_range: dict[str, str] | None) -> bool:
+    if not value or not time_range:
+        return True
+    start = time_range.get("from")
+    end = time_range.get("to")
+    if not start or not end:
+        return True
+    current = minutes(value)
+    return minutes(start) <= current <= minutes(end)
+
+
+def time_range_key(time_range: dict[str, str] | None) -> str:
+    if not time_range:
+        return ""
+    return f"{time_range.get('from', '')}-{time_range.get('to', '')}"
+
+
 def result_start(lines: list[str], marker: str) -> int:
     for index, line in enumerate(lines):
         if line.startswith(marker):
@@ -52,7 +74,12 @@ def result_start(lines: list[str], marker: str) -> int:
     return 0
 
 
-def flight_card_options(lines: list[str], start: int, requested: list[str]) -> list[dict[str, Any]]:
+def flight_card_options(
+    lines: list[str],
+    start: int,
+    requested: list[str],
+    time_range: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
     requested_aliases = {airline: AIRLINE_ALIASES.get(airline, [airline]) for airline in requested}
     options: list[dict[str, Any]] = []
     choice_index = 0
@@ -63,6 +90,8 @@ def flight_card_options(lines: list[str], start: int, requested: list[str]) -> l
         price = price_from_lines(lines, index)
         flight_time = first_time_from_lines(lines, index)
         if not price or not flight_time:
+            continue
+        if not in_time_range(flight_time, time_range):
             continue
         for airline, aliases in requested_aliases.items():
             if line in aliases:
@@ -116,7 +145,12 @@ class EzTravelSource(BrowserSource):
                 requested = config.get("airlines", {}).get("include") or []
                 excluded = set(config.get("airlines", {}).get("exclude") or [])
                 requested = [airline for airline in requested if airline not in excluded]
-                outbound_options = flight_card_options(lines, result_start(lines, "去程:"), requested)
+                outbound_options = flight_card_options(
+                    lines,
+                    result_start(lines, "去程:"),
+                    requested,
+                    config["trip"].get("outbound_time"),
+                )
                 if not outbound_options:
                     return super().search(config, route)
 
@@ -136,7 +170,8 @@ class EzTravelSource(BrowserSource):
                     return_options = flight_card_options(
                         return_lines,
                         result_start(return_lines, "回程:"),
-                        [best_outbound["airline"]],
+                        requested,
+                        config["trip"].get("return_time"),
                     )
                     if return_options:
                         best_return = min(return_options, key=lambda item: int(item["price"]))
@@ -158,6 +193,8 @@ class EzTravelSource(BrowserSource):
                         direct=bool(config["trip"].get("direct_only", True)),
                         departure_date=config["trip"]["departure_date"],
                         return_date=config["trip"]["return_date"],
+                        outbound_time_range=time_range_key(config["trip"].get("outbound_time")),
+                        return_time_range=time_range_key(config["trip"].get("return_time")),
                         return_airline=return_airline,
                         outbound_time=best_outbound["time"],
                         return_time=return_time,

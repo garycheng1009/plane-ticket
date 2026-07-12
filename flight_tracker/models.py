@@ -17,6 +17,8 @@ class FlightQuote:
     direct: bool = True
     departure_date: str | None = None
     return_date: str | None = None
+    outbound_time_range: str | None = None
+    return_time_range: str | None = None
     return_airline: str | None = None
     outbound_time: str | None = None
     return_time: str | None = None

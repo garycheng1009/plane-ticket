@@ -12,13 +12,15 @@ from flight_tracker.config import DEFAULT_CONFIG, load_config, save_config
 from flight_tracker.notify import send_line_message
 
 
-def run_tracker_subprocess(route_id: str, dry_run: bool) -> list[dict]:
+def run_tracker_subprocess(route_id: str, dry_run: bool, line_token: str = "") -> list[dict]:
     command = [sys.executable, "tracker.py", "--config", str(DEFAULT_CONFIG), "--route", route_id]
     if dry_run:
         command.append("--dry-run")
 
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
+    if line_token:
+        env["LINE_CHANNEL_ACCESS_TOKEN"] = line_token
     completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", env=env, check=False)
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr or completed.stdout or f"tracker.py failed with {completed.returncode}")
@@ -117,7 +119,7 @@ dry_run = st.checkbox("測試模式，不發 LINE", value=True)
 if st.button("開始查價"):
     save_config(config)
     with st.spinner("查價中，ezTravel 通常需要 20-40 秒..."):
-        results = run_tracker_subprocess(route_options[selected_route_name], dry_run=dry_run)
+        results = run_tracker_subprocess(route_options[selected_route_name], dry_run=dry_run, line_token=local_line_token)
 
     for result in results:
         if result["status"] != "ok":
@@ -129,6 +131,13 @@ if st.button("開始查價"):
         quote = result["quote"]
         summary = result["summary"]
         st.success(f"{result['route']}：{quote['airline']} TWD {quote['price']:,}")
+        if not result.get("alert"):
+            if not result.get("new_daily_low"):
+                st.info("這次不是今日最低價，所以不重複發 LINE。")
+            elif dry_run:
+                st.info("目前是測試模式，所以不發 LINE。")
+            else:
+                st.info("這次沒有符合通知條件。")
         cols = st.columns(3)
         cols[0].metric("目前", f"{summary['current']:,}" if summary["current"] else "-")
         cols[1].metric("30天平均", f"{summary['average']:,}" if summary["average"] else "-")

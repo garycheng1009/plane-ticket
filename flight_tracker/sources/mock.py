@@ -28,6 +28,8 @@ class MockSource(FlightSource):
                 direct=bool(config["trip"].get("direct_only", True)),
                 departure_date=config["trip"]["departure_date"],
                 return_date=config["trip"]["return_date"],
+                outbound_time_range=f"{config['trip']['outbound_time'].get('from', '')}-{config['trip']['outbound_time'].get('to', '')}",
+                return_time_range=f"{config['trip']['return_time'].get('from', '')}-{config['trip']['return_time'].get('to', '')}",
                 return_airline=random.choice(airlines),
                 outbound_time="08:30",
                 return_time="17:20",

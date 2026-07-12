@@ -25,7 +25,15 @@ def load_history(route_id: str) -> list[dict[str, Any]]:
 def tracking_key(quote: dict[str, Any]) -> str:
     return "|".join(
         str(quote.get(key) or "")
-        for key in ["origin", "destination", "departure_date", "return_date", "direct"]
+        for key in [
+            "origin",
+            "destination",
+            "departure_date",
+            "return_date",
+            "direct",
+            "outbound_time_range",
+            "return_time_range",
+        ]
     )
 
 
