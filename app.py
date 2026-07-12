@@ -76,7 +76,11 @@ config["sources"]["fallback_to_mock"] = st.checkbox(
 
 st.subheader("通知")
 config["line"]["enabled"] = st.checkbox("啟用 LINE Messaging API 通知", config["line"].get("enabled", False))
-config["line"]["to"] = st.text_input("LINE_TO 使用者或群組 ID", config["line"].get("to", ""))
+config["line"]["to"] = st.text_area(
+    "LINE_TO 使用者或群組 ID，可填多個，一行一個",
+    config["line"].get("to", ""),
+    height=90,
+)
 local_line_token = st.text_input("本機測試用 LINE_CHANNEL_ACCESS_TOKEN（不儲存）", type="password")
 config["alerts"]["rise_threshold"] = st.number_input(
     "漲價通知門檻",

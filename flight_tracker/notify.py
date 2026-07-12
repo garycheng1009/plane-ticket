@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 import requests
@@ -22,10 +23,12 @@ def build_message(route: dict[str, Any], quote: dict[str, Any], history: list[di
 
     stars, advice = rating(current, summary["average"], summary["lowest"], route.get("max_price"))
     yesterday_line = f"昨天 {yesterday}" if yesterday is not None else "昨天 無資料"
+    fetched_at = quote.get("fetched_at") or "無資料"
     history_lines = "\n".join(f"{item['date'][5:].replace('-', '/')} {item['price']}" for item in history[-10:])
 
     return (
         f"{headline}\n\n"
+        f"查詢時間 {fetched_at}\n\n"
         f"{quote.get('airline', '未知航空')}\n"
         f"{yesterday_line}\n"
         f"今天 {current}\n"
@@ -60,15 +63,17 @@ def send_line_message(message: str, config: dict[str, Any]) -> None:
         return
 
     channel_token = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
-    to = os.environ.get("LINE_TO") or line_config.get("to")
-    if channel_token and to:
-        response = requests.post(
-            "https://api.line.me/v2/bot/message/push",
-            headers={"Authorization": f"Bearer {channel_token}", "Content-Type": "application/json"},
-            json={"to": to, "messages": [{"type": "text", "text": message}]},
-            timeout=20,
-        )
-        response.raise_for_status()
+    to = os.environ.get("LINE_TO") or line_config.get("to") or ""
+    recipients = line_recipients(to)
+    if channel_token and recipients:
+        for recipient in recipients:
+            response = requests.post(
+                "https://api.line.me/v2/bot/message/push",
+                headers={"Authorization": f"Bearer {channel_token}", "Content-Type": "application/json"},
+                json={"to": recipient, "messages": [{"type": "text", "text": message}]},
+                timeout=20,
+            )
+            response.raise_for_status()
         return
 
     legacy_token = os.environ.get("LINE_NOTIFY_TOKEN")
@@ -83,3 +88,7 @@ def send_line_message(message: str, config: dict[str, Any]) -> None:
         return
 
     raise RuntimeError("LINE is enabled, but LINE_CHANNEL_ACCESS_TOKEN/LINE_TO is not configured.")
+
+
+def line_recipients(raw_to: str) -> list[str]:
+    return [item.strip() for item in re.split(r"[\s,;]+", raw_to) if item.strip()]
