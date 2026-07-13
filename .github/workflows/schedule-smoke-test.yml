@@ -1,0 +1,19 @@
+name: Schedule smoke test
+
+on:
+  schedule:
+    # Minimal scheduler probe. GitHub cron uses UTC.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  echo:
+    name: Echo scheduler status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print trigger context
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "sha=${{ github.sha }}"
+          date -u
