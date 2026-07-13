@@ -30,7 +30,7 @@
       "id": "hokkaido",
       "name": "北海道",
       "destination": "CTS",
-      "enabled": true,
+      "enabled": false,
       "max_price": 23000
     },
     {
@@ -44,14 +44,14 @@
       "id": "fukuoka",
       "name": "福岡",
       "destination": "FUK",
-      "enabled": true,
+      "enabled": false,
       "max_price": 15000
     },
     {
       "id": "osaka",
       "name": "大阪",
       "destination": "OSA",
-      "enabled": true,
+      "enabled": false,
       "max_price": 15000
     }
   ],
