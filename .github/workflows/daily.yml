@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   plane-ticket-track:
+    name: Plane Ticket Track
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
