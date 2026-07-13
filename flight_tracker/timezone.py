@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
+LEGACY_UTC_CUTOFF = datetime(2026, 7, 13, 14, 0, 0)
 
 
 def now_taipei() -> datetime:
@@ -25,6 +26,6 @@ def to_taipei(value: str | None) -> datetime | None:
         return None
     if parsed.tzinfo:
         return parsed.astimezone(TAIPEI_TZ)
-    if parsed.date() < datetime(2026, 7, 13).date():
+    if parsed < LEGACY_UTC_CUTOFF:
         return parsed.replace(tzinfo=ZoneInfo("UTC")).astimezone(TAIPEI_TZ)
     return parsed
