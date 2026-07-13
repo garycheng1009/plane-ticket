@@ -85,6 +85,7 @@ def build_message(
     yesterday: int | None,
 ) -> str:
     current = int(quote["price"])
+    route_name = quote.get("route_name") or route.get("name") or "未設定"
     fetched_at = display_time(quote.get("fetched_at"))
     departure_date = quote.get("departure_date") or "未設定"
     return_date = quote.get("return_date") or "未設定"
@@ -100,6 +101,7 @@ def build_message(
 
     return (
         f"查詢時間 {fetched_at}\n\n"
+        f"地點:{route_name}\n\n"
         f"查詢時間範圍:\n"
         f"{departure_date} ~ {return_date}\n\n"
         f"去程 {outbound_airline} {outbound_time}\n"
