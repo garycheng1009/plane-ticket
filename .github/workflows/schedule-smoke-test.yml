@@ -3,7 +3,8 @@ name: Schedule smoke test
 on:
   schedule:
     # Minimal scheduler probe. GitHub cron uses UTC.
-    - cron: "*/15 * * * *"
+    # Use off-peak minutes because scheduled runs can be delayed or dropped at busy boundaries.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch:
 
 jobs:
