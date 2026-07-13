@@ -7,6 +7,8 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
+from flight_tracker.timezone import to_taipei
+
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 DATA_DIR = DATA_ROOT / "prices"
@@ -154,12 +156,18 @@ def display_airline(value: str | None) -> str:
 def display_datetime(value: str | None) -> str:
     if not value:
         return ""
+    parsed = to_taipei(value)
+    if parsed:
+        return parsed.strftime("%Y-%m-%d %H:%M:%S")
     return value.replace("T", " ")
 
 
 def display_clock(value: str | None) -> str:
     if not value:
         return ""
+    parsed = to_taipei(value)
+    if parsed:
+        return parsed.strftime("%H:%M")
     normalized = value.replace("T", " ")
     return normalized[11:16] if len(normalized) >= 16 else normalized[:5]
 

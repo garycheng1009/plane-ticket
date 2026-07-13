@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from typing import Any
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -9,6 +8,7 @@ from playwright.sync_api import sync_playwright
 
 from flight_tracker.models import FlightQuote
 from flight_tracker.sources.browser_source import BrowserSource, query_url
+from flight_tracker.timezone import now_taipei_iso
 
 
 AIRLINE_ALIASES = {
@@ -256,7 +256,7 @@ class EzTravelSource(BrowserSource):
                         return_airline=return_airline,
                         outbound_time=best_outbound["time"],
                         return_time=return_time,
-                        fetched_at=datetime.now().isoformat(timespec="seconds"),
+                        fetched_at=now_taipei_iso(),
                         booking_url=page.url,
                     )
                 ]

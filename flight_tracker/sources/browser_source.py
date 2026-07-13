@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from urllib.parse import urlencode
 from typing import Any
 
@@ -10,6 +9,7 @@ from playwright.sync_api import sync_playwright
 
 from flight_tracker.models import FlightQuote
 from flight_tracker.sources.base import FlightSource
+from flight_tracker.timezone import now_taipei_iso
 
 
 PRICE_PATTERN = re.compile(r"(?:NT\$|TWD|\$)\s*([0-9,]{4,6})")
@@ -47,7 +47,7 @@ class BrowserSource(FlightSource):
                         airline="網站最低價",
                         price=min(sensible),
                         direct=bool(config["trip"].get("direct_only", True)),
-                        fetched_at=datetime.now().isoformat(timespec="seconds"),
+                        fetched_at=now_taipei_iso(),
                         booking_url=page.url,
                     )
                 ]

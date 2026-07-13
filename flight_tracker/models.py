@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+
+from flight_tracker.timezone import now_taipei_iso
 
 
 @dataclass(frozen=True)
@@ -29,5 +30,5 @@ class FlightQuote:
     def normalized(self) -> dict:
         data = self.__dict__.copy()
         if not data["fetched_at"]:
-            data["fetched_at"] = datetime.now().isoformat(timespec="seconds")
+            data["fetched_at"] = now_taipei_iso()
         return data

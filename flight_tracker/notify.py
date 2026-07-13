@@ -7,6 +7,8 @@ from typing import Any
 
 import requests
 
+from flight_tracker.timezone import to_taipei
+
 
 AIRLINE_DISPLAY_NAMES = {
     "星宇": "星宇航空",
@@ -23,10 +25,10 @@ AIRLINE_DISPLAY_NAMES = {
 def display_time(value: str | None) -> str:
     if not value:
         return "未取得"
-    try:
-        return datetime.fromisoformat(value).strftime("%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        return value.replace("T", " ")
+    parsed = to_taipei(value)
+    if parsed:
+        return parsed.strftime("%Y-%m-%d %H:%M:%S")
+    return value.replace("T", " ")
 
 
 def display_airline(value: str | None) -> str:
@@ -38,10 +40,10 @@ def display_airline(value: str | None) -> str:
 def display_clock(value: str | None) -> str:
     if not value:
         return "??:??"
-    try:
-        return datetime.fromisoformat(value).strftime("%H:%M")
-    except ValueError:
-        return value[11:16] if len(value) >= 16 else "??:??"
+    parsed = to_taipei(value)
+    if parsed:
+        return parsed.strftime("%H:%M")
+    return value[11:16] if len(value) >= 16 else "??:??"
 
 
 def display_history_date(value: str | None) -> str:
