@@ -90,9 +90,16 @@ def matching_history(history: list[dict[str, Any]], quote: dict[str, Any]) -> li
     return [item for item in history if item.get("tracking_key") == key]
 
 
+def quote_date(quote: dict[str, Any]) -> str:
+    parsed = to_taipei(quote.get("fetched_at"))
+    if parsed:
+        return parsed.date().isoformat()
+    return date.today().isoformat()
+
+
 def append_daily_quote(route_id: str, quote: dict[str, Any], today: str | None = None) -> list[dict[str, Any]]:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    day = today or date.today().isoformat()
+    day = today or quote_date(quote)
     history = load_history(route_id)
     entry = {"date": day, **quote, "tracking_key": tracking_key(quote)}
     existing = next(
