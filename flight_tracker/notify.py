@@ -33,9 +33,17 @@ def display_time(value: str | None) -> str:
 
 def display_airline(value: str | None) -> str:
     if not value:
-        return "未取得"
+        return "\u672a\u53d6\u5f97"
     return AIRLINE_DISPLAY_NAMES.get(value, value)
 
+
+def display_airline_short(value: str | None) -> str:
+    if not value:
+        return "\u672a\u53d6\u5f97"
+    for short_name, full_name in AIRLINE_DISPLAY_NAMES.items():
+        if value == short_name or value == full_name:
+            return short_name
+    return value
 
 def display_clock(value: str | None) -> str:
     if not value:
@@ -56,16 +64,16 @@ def display_history_date(value: str | None) -> str:
 
 
 def history_line(item: dict[str, Any]) -> str:
-    price = item.get("price", "無資料")
+    price = item.get("price", '無資料')
     clock = display_clock(item.get("fetched_at"))
-    return f"{display_history_date(item.get('date'))} {price} ({clock})"
-
+    airline = display_airline_short(item.get("airline"))
+    return f"{display_history_date(item.get('date'))} {price} ({clock}){airline}"
 
 def lowest_text(record: dict[str, Any] | None, fallback: int | None) -> str:
     if not record:
-        return str(fallback or "無資料")
-    return f"{record['price']}（{display_history_date(record.get('date'))} {display_clock(record.get('fetched_at'))}）"
-
+        return str(fallback or '無資料')
+    airline = display_airline_short(record.get("airline"))
+    return f"{record['price']}（{display_history_date(record.get('date'))} {display_clock(record.get('fetched_at'))}）{airline}"
 
 def change_text(current: int, previous_day_lowest: int | None) -> str:
     if previous_day_lowest is None:
@@ -104,7 +112,7 @@ def build_message(
     return (
         f"查詢時間 {fetched_at}\n\n"
         f"地點:{route_name}\n\n"
-        f"查詢時間範圍:\n"
+        f"往返時間:\n"
         f"{departure_date} ~ {return_date}\n\n"
         f"去程 {outbound_airline} {outbound_time}\n"
         f"回程 {return_airline} {return_time}\n\n"

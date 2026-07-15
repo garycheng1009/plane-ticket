@@ -85,9 +85,7 @@ for route in config["routes"]:
 
 st.subheader("航空公司")
 include_text = st.text_area("指定航空公司，一行一個", "\n".join(config["airlines"].get("include", [])))
-exclude_text = st.text_area("排除航空公司，一行一個", "\n".join(config["airlines"].get("exclude", [])))
 config["airlines"]["include"] = [item.strip() for item in include_text.splitlines() if item.strip()]
-config["airlines"]["exclude"] = [item.strip() for item in exclude_text.splitlines() if item.strip()]
 
 st.subheader("資料來源")
 source_options = ["eztravel", "skyscanner", "mock"]
