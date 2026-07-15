@@ -133,20 +133,17 @@ def lowest_blocks(quotes: list[dict[str, Any]]) -> tuple[str, str]:
     lowest_quotes = [quote for quote in airline_quotes if int(quote["price"]) == lowest_price]
     other_quotes = [quote for quote in airline_quotes if int(quote["price"]) > lowest_price]
 
-    lowest_parts = ["🏆 最低價格"]
+    lowest_parts = ["最低價格:"]
     for quote in lowest_quotes:
-        lowest_parts.extend(
-            [
-                f"⭐ {display_airline(quote.get('airline'))}",
-                f"去程 {quote.get('outbound_time') or '未取得'}",
-                f"回程 {quote.get('return_time') or '未取得'}",
-                f"💰 {format_price(quote['price'])} 元",
-            ]
+        lowest_parts.append(
+            f"{display_airline(quote.get('airline'))} "
+            f"{quote.get('outbound_time') or '未取得'} / {quote.get('return_time') or '未取得'}　"
+            f"{format_price(quote['price'])} 元"
         )
 
     other_block = ""
     if other_quotes:
-        other_block = "其他航空\n" + "\n".join(flight_line(quote, lowest_price) for quote in other_quotes)
+        other_block = "其他航空:\n" + "\n".join(flight_line(quote, lowest_price) for quote in other_quotes)
     return "\n".join(lowest_parts), other_block
 
 
@@ -172,7 +169,7 @@ def build_message(
 
     return (
         f"查詢時間 {fetched_at}\n\n"
-        f"📍{route_name}\n"
+        f"地點:{route_name}\n\n"
         f"往返日期\n"
         f"{departure_date} ~ {return_date}\n\n"
         f"{lowest_block}"

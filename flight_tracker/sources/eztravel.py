@@ -93,6 +93,28 @@ def result_start(lines: list[str], marker: str) -> int:
     return 0
 
 
+def body_lines(page: Any) -> list[str]:
+    return [line.strip() for line in page.locator("body").inner_text(timeout=10000).splitlines() if line.strip()]
+
+
+def scrolled_body_lines(page: Any, steps: int = 8) -> list[str]:
+    all_lines: list[str] = []
+    seen_pages: set[str] = set()
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(800)
+    for _ in range(steps):
+        lines = body_lines(page)
+        page_text = "\n".join(lines)
+        if page_text not in seen_pages:
+            seen_pages.add(page_text)
+            all_lines.extend(lines)
+        page.evaluate("window.scrollBy(0, Math.floor(window.innerHeight * 0.85))")
+        page.wait_for_timeout(900)
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(500)
+    return all_lines
+
+
 def flight_card_options(
     lines: list[str],
     start: int,
@@ -101,6 +123,7 @@ def flight_card_options(
 ) -> list[dict[str, Any]]:
     requested_aliases = {airline: AIRLINE_ALIASES.get(airline, [airline]) for airline in requested}
     options: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, int]] = set()
     choice_index = 0
     for index in range(start, len(lines)):
         line = lines[index]
@@ -114,6 +137,10 @@ def flight_card_options(
             continue
         for airline, aliases in requested_aliases.items():
             if line in aliases:
+                key = (airline, flight_time, price)
+                if key in seen:
+                    break
+                seen.add(key)
                 options.append(
                     {
                         "airline": airline,
@@ -131,36 +158,64 @@ def click_matching_choice(page: Any, option: dict[str, Any]) -> bool:
     airline = display_airline_name(str(option["airline"]))
     price = f"TWD{int(option['price']):,}"
     flight_time = str(option["time"])
-    return bool(
-        page.evaluate(
-            """
-            ({ airline, price, flightTime }) => {
-                const buttons = Array.from(document.querySelectorAll('button, a, div, span'))
-                    .filter((el) => (el.textContent || '').trim() === '選擇');
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(500)
+    for _ in range(10):
+        clicked = bool(
+            page.evaluate(
+                """
+                ({ airline, price, flightTime }) => {
+                    const buttons = Array.from(document.querySelectorAll('button, a, div, span'))
+                        .filter((el) => (el.textContent || '').trim() === '選擇');
 
-                for (const button of buttons) {
-                    let node = button;
-                    for (let depth = 0; node && depth < 10; depth += 1, node = node.parentElement) {
-                        const text = node.innerText || node.textContent || '';
-                        const selectCount = (text.match(/選擇/g) || []).length;
-                        if (
-                            text.length < 500
-                            && selectCount <= 1
-                            && text.includes(airline)
-                            && text.includes(flightTime)
-                            && text.replace(/\\s+/g, '').includes(price)
-                        ) {
-                            button.click();
-                            return true;
+                    for (const button of buttons) {
+                        let node = button;
+                        for (let depth = 0; node && depth < 10; depth += 1, node = node.parentElement) {
+                            const text = node.innerText || node.textContent || '';
+                            const selectCount = (text.match(/選擇/g) || []).length;
+                            if (
+                                text.length < 500
+                                && selectCount <= 1
+                                && text.includes(airline)
+                                && text.includes(flightTime)
+                                && text.replace(/\\s+/g, '').includes(price)
+                            ) {
+                                button.click();
+                                return true;
+                            }
                         }
                     }
+                    return false;
                 }
-                return false;
-            }
-            """,
-            {"airline": airline, "price": price, "flightTime": flight_time},
+                """,
+                {"airline": airline, "price": price, "flightTime": flight_time},
+            )
         )
-    )
+        if clicked:
+            return True
+        page.evaluate("window.scrollBy(0, Math.floor(window.innerHeight * 0.85))")
+        page.wait_for_timeout(700)
+    return False
+
+
+def candidate_outbounds(options: list[dict[str, Any]], max_per_airline: int = 2) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    counts: dict[str, int] = {}
+    for option in sorted(options, key=lambda item: int(item["price"])):
+        airline = str(option["airline"])
+        if counts.get(airline, 0) >= max_per_airline:
+            continue
+        counts[airline] = counts.get(airline, 0) + 1
+        selected.append(option)
+    return selected
+
+
+def best_quotes_by_airline(quotes: list[FlightQuote]) -> list[FlightQuote]:
+    best: dict[str, FlightQuote] = {}
+    for quote in quotes:
+        if quote.airline not in best or quote.price < best[quote.airline].price:
+            best[quote.airline] = quote
+    return sorted(best.values(), key=lambda quote: quote.price)
 
 
 class EzTravelSource(BrowserSource):
@@ -199,16 +254,12 @@ class EzTravelSource(BrowserSource):
         page = browser.new_page(locale="zh-TW", timezone_id="Asia/Taipei", viewport={"width": 1280, "height": 720})
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(25000)
+            page.wait_for_timeout(16000)
             clicked = click_matching_choice(page, outbound)
             if not clicked:
                 page.locator("text=選擇").nth(int(outbound["choice_index"])).click()
-            page.wait_for_timeout(25000)
-            return_lines = [
-                line.strip()
-                for line in page.locator("body").inner_text(timeout=10000).splitlines()
-                if line.strip()
-            ]
+            page.wait_for_timeout(14000)
+            return_lines = scrolled_body_lines(page)
             return_options = flight_card_options(
                 return_lines,
                 result_start(return_lines, "回程:"),
@@ -256,9 +307,8 @@ class EzTravelSource(BrowserSource):
             try:
                 url = self.build_url(config, route)
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_timeout(25000)
-                text = page.locator("body").inner_text(timeout=10000)
-                lines = [line.strip() for line in text.splitlines() if line.strip()]
+                page.wait_for_timeout(18000)
+                lines = scrolled_body_lines(page)
                 requested = config.get("airlines", {}).get("include") or []
                 excluded = set(config.get("airlines", {}).get("exclude") or [])
                 requested = [airline for airline in requested if airline not in excluded]
@@ -271,18 +321,12 @@ class EzTravelSource(BrowserSource):
                 if not outbound_options:
                     return []
 
-                best_by_airline: dict[str, dict[str, Any]] = {}
-                for option in outbound_options:
-                    airline = str(option["airline"])
-                    if airline not in best_by_airline or int(option["price"]) < int(best_by_airline[airline]["price"]):
-                        best_by_airline[airline] = option
-
                 quotes = [
                     quote
-                    for option in sorted(best_by_airline.values(), key=lambda item: int(item["price"]))
+                    for option in candidate_outbounds(outbound_options)
                     if (quote := self.quote_for_outbound(browser, config, route, option, url)) is not None
                 ]
-                return quotes
+                return best_quotes_by_airline(quotes)
             except PlaywrightTimeoutError:
                 return []
             finally:
