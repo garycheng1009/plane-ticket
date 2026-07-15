@@ -58,11 +58,8 @@
   "airlines": {
     "include": [
       "星宇",
-      "長榮",
       "華航",
-      "國泰",
-      "ANA",
-      "JAL"
+      "國泰"
     ],
     "exclude": [
       "United",

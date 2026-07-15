@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from typing import Any
 
 from flight_tracker.config import load_config
@@ -26,7 +27,7 @@ def enabled_routes(config: dict[str, Any], route_id: str | None = None) -> list[
     return routes
 
 
-def best_quote(config: dict[str, Any], route: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+def best_quote(config: dict[str, Any], route: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str], list[dict[str, Any]]]:
     errors = []
     source_names = config.get("sources", {}).get("enabled", ["mock"])
     if config.get("sources", {}).get("fallback_to_mock") and "mock" not in source_names:
@@ -56,15 +57,15 @@ def best_quote(config: dict[str, Any], route: dict[str, Any]) -> tuple[dict[str,
         filtered.append(data)
 
     if not filtered:
-        return None, errors
-    return min(filtered, key=lambda item: int(item["price"])), errors
+        return None, errors, []
+    return min(filtered, key=lambda item: int(item["price"])), errors, sorted(filtered, key=lambda item: int(item["price"]))
 
 
 def run(config_path: str, dry_run: bool = False, route_id: str | None = None) -> list[dict[str, Any]]:
     config = load_config(config_path)
     results = []
     for route in enabled_routes(config, route_id):
-        quote, errors = best_quote(config, route)
+        quote, errors, alternatives = best_quote(config, route)
         if not quote:
             results.append({"route": route["name"], "status": "no_quote", "errors": errors})
             continue
@@ -87,7 +88,7 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
         )
         summary = stats(query_history)
         yesterday = previous_price(query_history)
-        message = build_message(route, quote, query_history, summary, yesterday)
+        message = build_message(route, quote, query_history, summary, yesterday, alternatives)
         alert = is_new_daily_low and should_alert(config, route, int(saved_quote["price"]), yesterday)
         line_sent = False
         if not dry_run and config.get("line", {}).get("enabled"):
@@ -101,6 +102,7 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
                 "line_sent": line_sent,
                 "new_daily_low": is_new_daily_low,
                 "quote": quote,
+                "alternatives": alternatives,
                 "daily_low": saved_quote,
                 "summary": summary,
                 "message": message,
@@ -111,6 +113,8 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config.json")
     parser.add_argument("--dry-run", action="store_true")

@@ -27,27 +27,30 @@ def display_time(value: str | None) -> str:
         return "未取得"
     parsed = to_taipei(value)
     if parsed:
-        return parsed.strftime("%Y-%m-%d %H:%M:%S")
-    return value.replace("T", " ")
+        return parsed.strftime("%Y-%m-%d %H:%M")
+    return value.replace("T", " ")[:16]
 
 
 def display_airline(value: str | None) -> str:
     if not value:
-        return "\u672a\u53d6\u5f97"
+        return "未取得"
     return AIRLINE_DISPLAY_NAMES.get(value, value)
 
 
 def display_airline_short(value: str | None) -> str:
     if not value:
-        return "\u672a\u53d6\u5f97"
+        return "未取得"
     for short_name, full_name in AIRLINE_DISPLAY_NAMES.items():
         if value == short_name or value == full_name:
             return short_name
     return value
 
+
 def display_clock(value: str | None) -> str:
     if not value:
         return "??:??"
+    if re.fullmatch(r"\d{2}:\d{2}", value):
+        return value
     parsed = to_taipei(value)
     if parsed:
         return parsed.strftime("%H:%M")
@@ -63,28 +66,88 @@ def display_history_date(value: str | None) -> str:
         return value[5:].replace("-", "/")
 
 
-def history_line(item: dict[str, Any]) -> str:
-    price = item.get("price", '無資料')
-    clock = display_clock(item.get("fetched_at"))
+def format_price(value: int | str | None) -> str:
+    if value in (None, ""):
+        return "無資料"
+    return f"{int(value):,}"
+
+
+def history_line(item: dict[str, Any], lowest_price: int | None) -> str:
+    price = int(item.get("price", 0))
     airline = display_airline_short(item.get("airline"))
-    return f"{display_history_date(item.get('date'))} {price} ({clock}){airline}"
+    marker = "⭐" if lowest_price is not None and price == lowest_price else ""
+    return f"{display_history_date(item.get('date'))}　{format_price(price)}　{marker}{airline}"
+
 
 def lowest_text(record: dict[str, Any] | None, fallback: int | None) -> str:
     if not record:
-        return str(fallback or '無資料')
+        return format_price(fallback)
     airline = display_airline_short(record.get("airline"))
-    return f"{record['price']}（{display_history_date(record.get('date'))} {display_clock(record.get('fetched_at'))}）{airline}"
+    return (
+        f"{format_price(record['price'])}"
+        f"（{display_history_date(record.get('date'))} {display_clock(record.get('fetched_at') or record.get('time'))}）"
+        f"{airline}"
+    )
 
-def change_text(current: int, previous_day_lowest: int | None) -> str:
+
+def change_block(current: int, previous_day_lowest: int | None) -> str:
     if previous_day_lowest is None:
         return ""
     difference = current - previous_day_lowest
     percentage = abs(difference) / previous_day_lowest * 100 if previous_day_lowest else 0
     if difference < 0:
-        return f"較前一日最低下降 {abs(difference)} 元（{percentage:.1f}%）"
+        return f"📉 較昨日最低\n↓{abs(difference)} 元（-{percentage:.1f}%）\n\n"
     if difference > 0:
-        return f"較前一日最低上漲 {difference} 元（{percentage:.1f}%）"
-    return "與前一日最低持平"
+        return f"📈 較昨日最低\n↑{difference} 元（+{percentage:.1f}%）\n\n"
+    return "📉 較昨日最低\n持平\n\n"
+
+
+def quote_sort_key(quote: dict[str, Any]) -> tuple[int, str]:
+    return int(quote.get("price", 0)), display_airline_short(quote.get("airline"))
+
+
+def best_by_airline(quotes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    best: dict[str, dict[str, Any]] = {}
+    for quote in quotes:
+        airline = display_airline_short(quote.get("airline"))
+        if airline not in best or int(quote["price"]) < int(best[airline]["price"]):
+            best[airline] = quote
+    return sorted(best.values(), key=quote_sort_key)
+
+
+def flight_line(quote: dict[str, Any], lowest_price: int) -> str:
+    diff = int(quote["price"]) - lowest_price
+    return (
+        f"{display_airline_short(quote.get('airline'))}　"
+        f"{quote.get('outbound_time') or '未取得'} / {quote.get('return_time') or '未取得'}　"
+        f"{format_price(quote['price'])} 元（+{format_price(diff)}）"
+    )
+
+
+def lowest_blocks(quotes: list[dict[str, Any]]) -> tuple[str, str]:
+    airline_quotes = best_by_airline(quotes)
+    if not airline_quotes:
+        return "🏆 最低價格\n無資料", ""
+
+    lowest_price = min(int(quote["price"]) for quote in airline_quotes)
+    lowest_quotes = [quote for quote in airline_quotes if int(quote["price"]) == lowest_price]
+    other_quotes = [quote for quote in airline_quotes if int(quote["price"]) > lowest_price]
+
+    lowest_parts = ["🏆 最低價格"]
+    for quote in lowest_quotes:
+        lowest_parts.extend(
+            [
+                f"⭐ {display_airline(quote.get('airline'))}",
+                f"去程 {quote.get('outbound_time') or '未取得'}",
+                f"回程 {quote.get('return_time') or '未取得'}",
+                f"💰 {format_price(quote['price'])} 元",
+            ]
+        )
+
+    other_block = ""
+    if other_quotes:
+        other_block = "其他航空\n" + "\n".join(flight_line(quote, lowest_price) for quote in other_quotes)
+    return "\n".join(lowest_parts), other_block
 
 
 def build_message(
@@ -93,36 +156,33 @@ def build_message(
     history: list[dict[str, Any]],
     summary: dict[str, Any],
     yesterday: int | None,
+    alternatives: list[dict[str, Any]] | None = None,
 ) -> str:
     current = int(quote["price"])
     route_name = quote.get("route_name") or route.get("name") or "未設定"
     fetched_at = display_time(quote.get("fetched_at"))
     departure_date = quote.get("departure_date") or "未設定"
     return_date = quote.get("return_date") or "未設定"
-    outbound_airline = display_airline(quote.get("airline"))
-    outbound_time = quote.get("outbound_time") or "未取得"
-    return_airline = display_airline(quote.get("return_airline") or quote.get("airline"))
-    return_time = quote.get("return_time") or "未取得"
-    current_daily_low = summary["current"] or current
-    daily_low_line = f"\n今日最低:{current_daily_low}" if current_daily_low != current else ""
-    change_line = change_text(current, yesterday)
-    change_block = f"\n{change_line}\n" if change_line else "\n"
-    history_lines = "\n".join(history_line(item) for item in sorted(history, key=lambda item: item["date"])[-7:])
+    quote_options = alternatives or [quote]
+    lowest_block, other_block = lowest_blocks(quote_options)
+    other_section = f"\n\n{other_block}" if other_block else ""
+    history_records = sorted(history, key=lambda item: item["date"])[-7:]
+    lowest_price = summary.get("lowest")
+    history_lines = "\n".join(history_line(item, lowest_price) for item in history_records)
 
     return (
         f"查詢時間 {fetched_at}\n\n"
-        f"地點:{route_name}\n\n"
-        f"往返時間:\n"
+        f"📍{route_name}\n"
+        f"往返日期\n"
         f"{departure_date} ~ {return_date}\n\n"
-        f"去程 {outbound_airline} {outbound_time}\n"
-        f"回程 {return_airline} {return_time}\n\n"
-        f"金額:{current}"
-        f"{daily_low_line}\n"
-        f"{change_block}"
+        f"{lowest_block}"
+        f"{other_section}\n\n"
+        f"────────────────\n\n"
+        f"{change_block(current, yesterday)}"
         f"最近30天\n"
-        f"平均 {summary['average'] or '無資料'}\n"
-        f"最低 {lowest_text(summary.get('lowest_record'), summary.get('lowest'))}\n"
-        f"目前 {current}\n\n"
+        f"平均　{format_price(summary['average']) if summary['average'] else '無資料'}\n"
+        f"最低　{lowest_text(summary.get('lowest_record'), summary.get('lowest'))}\n"
+        f"目前　{format_price(current)}\n\n"
         f"近7日每日最低\n"
         f"{history_lines}"
     )

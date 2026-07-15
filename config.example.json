@@ -56,11 +56,21 @@
     }
   ],
   "airlines": {
-    "include": ["星宇", "長榮", "華航", "國泰", "ANA", "JAL"],
-    "exclude": ["United", "Peach"]
+    "include": [
+      "星宇",
+      "華航",
+      "國泰"
+    ],
+    "exclude": [
+      "United",
+      "Peach"
+    ]
   },
   "sources": {
-    "enabled": ["eztravel", "skyscanner"],
+    "enabled": [
+      "eztravel",
+      "skyscanner"
+    ],
     "fallback_to_mock": false
   },
   "alerts": {

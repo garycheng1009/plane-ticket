@@ -188,12 +188,74 @@ class EzTravelSource(BrowserSource):
             },
         )
 
+    def quote_for_outbound(
+        self,
+        browser: Any,
+        config: dict[str, Any],
+        route: dict[str, Any],
+        outbound: dict[str, Any],
+        url: str,
+    ) -> FlightQuote | None:
+        page = browser.new_page(locale="zh-TW", timezone_id="Asia/Taipei", viewport={"width": 1280, "height": 720})
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(25000)
+            clicked = click_matching_choice(page, outbound)
+            if not clicked:
+                page.locator("text=選擇").nth(int(outbound["choice_index"])).click()
+            page.wait_for_timeout(25000)
+            return_lines = [
+                line.strip()
+                for line in page.locator("body").inner_text(timeout=10000).splitlines()
+                if line.strip()
+            ]
+            return_options = flight_card_options(
+                return_lines,
+                result_start(return_lines, "回程:"),
+                [str(outbound["airline"])],
+                config["trip"].get("return_time"),
+            )
+            return_airline = outbound["airline"]
+            return_time = None
+            final_price = int(outbound["price"])
+            if return_options:
+                best_return = min(return_options, key=lambda item: int(item["price"]))
+                return_airline = best_return["airline"]
+                return_time = best_return["time"]
+                final_price = int(best_return["price"])
+
+            return FlightQuote(
+                source=self.name,
+                route_id=route["id"],
+                route_name=route["name"],
+                origin=config["trip"]["origin"],
+                destination=route["destination"],
+                airline=outbound["airline"],
+                price=final_price,
+                direct=bool(config["trip"].get("direct_only", True)),
+                departure_date=config["trip"]["departure_date"],
+                return_date=config["trip"]["return_date"],
+                outbound_time_range=time_range_key(config["trip"].get("outbound_time")),
+                return_time_range=time_range_key(config["trip"].get("return_time")),
+                passengers=passenger_key(config["trip"]),
+                return_airline=return_airline,
+                outbound_time=outbound["time"],
+                return_time=return_time,
+                fetched_at=now_taipei_iso(),
+                booking_url=page.url,
+            )
+        except Exception:
+            return None
+        finally:
+            page.close()
+
     def search(self, config: dict[str, Any], route: dict[str, Any]) -> list[FlightQuote]:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             page = browser.new_page(locale="zh-TW", timezone_id="Asia/Taipei", viewport={"width": 1280, "height": 720})
             try:
-                page.goto(self.build_url(config, route), wait_until="domcontentloaded", timeout=60000)
+                url = self.build_url(config, route)
+                page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 page.wait_for_timeout(25000)
                 text = page.locator("body").inner_text(timeout=10000)
                 lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -207,59 +269,20 @@ class EzTravelSource(BrowserSource):
                     config["trip"].get("outbound_time"),
                 )
                 if not outbound_options:
-                    return super().search(config, route)
+                    return []
 
-                best_outbound = min(outbound_options, key=lambda item: int(item["price"]))
-                return_airline = best_outbound["airline"]
-                return_time = None
-                final_price = int(best_outbound["price"])
+                best_by_airline: dict[str, dict[str, Any]] = {}
+                for option in outbound_options:
+                    airline = str(option["airline"])
+                    if airline not in best_by_airline or int(option["price"]) < int(best_by_airline[airline]["price"]):
+                        best_by_airline[airline] = option
 
-                try:
-                    clicked = click_matching_choice(page, best_outbound)
-                    if not clicked:
-                        page.locator("text=選擇").nth(int(best_outbound["choice_index"])).click()
-                    page.wait_for_timeout(25000)
-                    return_lines = [
-                        line.strip()
-                        for line in page.locator("body").inner_text(timeout=10000).splitlines()
-                        if line.strip()
-                    ]
-                    return_options = flight_card_options(
-                        return_lines,
-                        result_start(return_lines, "回程:"),
-                        requested,
-                        config["trip"].get("return_time"),
-                    )
-                    if return_options:
-                        best_return = min(return_options, key=lambda item: int(item["price"]))
-                        return_airline = best_return["airline"]
-                        return_time = best_return["time"]
-                        final_price = int(best_return["price"])
-                except Exception:
-                    pass
-
-                return [
-                    FlightQuote(
-                        source=self.name,
-                        route_id=route["id"],
-                        route_name=route["name"],
-                        origin=config["trip"]["origin"],
-                        destination=route["destination"],
-                        airline=best_outbound["airline"],
-                        price=final_price,
-                        direct=bool(config["trip"].get("direct_only", True)),
-                        departure_date=config["trip"]["departure_date"],
-                        return_date=config["trip"]["return_date"],
-                        outbound_time_range=time_range_key(config["trip"].get("outbound_time")),
-                        return_time_range=time_range_key(config["trip"].get("return_time")),
-                        passengers=passenger_key(config["trip"]),
-                        return_airline=return_airline,
-                        outbound_time=best_outbound["time"],
-                        return_time=return_time,
-                        fetched_at=now_taipei_iso(),
-                        booking_url=page.url,
-                    )
+                quotes = [
+                    quote
+                    for option in sorted(best_by_airline.values(), key=lambda item: int(item["price"]))
+                    if (quote := self.quote_for_outbound(browser, config, route, option, url)) is not None
                 ]
+                return quotes
             except PlaywrightTimeoutError:
                 return []
             finally:
