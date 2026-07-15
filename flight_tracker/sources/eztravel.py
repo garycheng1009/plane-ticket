@@ -273,7 +273,7 @@ class EzTravelSource(BrowserSource):
                 best_return = min(return_options, key=lambda item: int(item["price"]))
                 return_airline = best_return["airline"]
                 return_time = best_return["time"]
-                final_price = int(best_return["price"])
+                final_price = min(final_price, int(best_return["price"]))
 
             return FlightQuote(
                 source=self.name,
