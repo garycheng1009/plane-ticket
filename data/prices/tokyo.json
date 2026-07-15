@@ -92,7 +92,7 @@
     "origin": "TPE",
     "destination": "TYO",
     "airline": "國泰",
-    "price": 19983,
+    "price": 18338,
     "currency": "TWD",
     "direct": true,
     "departure_date": "2027-01-30",
@@ -103,7 +103,7 @@
     "return_airline": "國泰",
     "outbound_time": "12:50",
     "return_time": "15:30",
-    "fetched_at": "2026-07-15T21:58:53",
+    "fetched_at": "2026-07-16T00:18:37",
     "booking_url": "https://flight.eztravel.com.tw/tickets-roundtrip-TPE-TYO/?outbounddate=30%2F01%2F2027&inbounddate=05%2F02%2F2027&dport=&aport=&adults=2&children=1&infants=0&direct=true&cabintype=&airline=&searchbox=s",
     "tracking_key": "TPE|TYO|2027-01-30|2027-02-05|True|05:00-14:00|12:00-22:00|A2C1I0"
   }
