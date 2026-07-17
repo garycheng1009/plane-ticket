@@ -8,6 +8,7 @@ from pathlib import Path
 
 import flight_tracker.range_search as range_search
 from flight_tracker.models import FlightQuote
+from flight_tracker.sources.eztravel import selected_outbounds
 
 
 ROUTE = {"id": "tokyo", "name": "東京", "destination": "TYO"}
@@ -202,6 +203,24 @@ class RangeSearchTests(unittest.TestCase):
 
     def test_old_config_defaults_to_disabled(self) -> None:
         self.assertFalse(range_search.is_enabled({"trip": {}}))
+
+    def test_range_query_selects_only_overall_lowest_outbound(self) -> None:
+        options = [
+            {"airline": "國泰", "price": 20000, "time": "12:50"},
+            {"airline": "星宇", "price": 18000, "time": "10:10"},
+            {"airline": "華航", "price": 19000, "time": "12:35"},
+        ]
+        config = {"range_search": {"_range_query": True, "max_outbounds_total": 1}}
+        self.assertEqual(selected_outbounds(config, options), [options[1]])
+
+    def test_fixed_query_still_selects_candidates_by_airline(self) -> None:
+        options = [
+            {"airline": "國泰", "price": 20000, "time": "12:50"},
+            {"airline": "星宇", "price": 18000, "time": "10:10"},
+            {"airline": "華航", "price": 19000, "time": "12:35"},
+        ]
+        selected = selected_outbounds({}, options)
+        self.assertEqual({item["airline"] for item in selected}, {"國泰", "星宇", "華航"})
 
 
 if __name__ == "__main__":

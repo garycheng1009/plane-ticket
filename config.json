@@ -80,6 +80,7 @@
     "return_start_date": "2027-02-06",
     "return_end_date": "2027-02-09",
     "debug": false,
+    "max_outbounds_total": 1,
     "success_warning_threshold": 0.5
   },
   "alerts": {

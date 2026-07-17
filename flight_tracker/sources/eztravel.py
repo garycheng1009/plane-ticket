@@ -241,6 +241,18 @@ def candidate_outbounds(options: list[dict[str, Any]], max_per_airline: int = 2)
     return selected
 
 
+def range_candidate_outbounds(config: dict[str, Any], options: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    settings = config.get("range_search") or {}
+    max_total = max(1, int(settings.get("max_outbounds_total", 1)))
+    return sorted(options, key=lambda item: (int(item["price"]), str(item["airline"]), str(item["time"])))[:max_total]
+
+
+def selected_outbounds(config: dict[str, Any], options: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if (config.get("range_search") or {}).get("_range_query"):
+        return range_candidate_outbounds(config, options)
+    return candidate_outbounds(options)
+
+
 def best_quotes_by_airline(quotes: list[FlightQuote]) -> list[FlightQuote]:
     best: dict[str, FlightQuote] = {}
     for quote in quotes:
@@ -376,7 +388,7 @@ class EzTravelSource(BrowserSource):
 
             quotes = [
                 quote
-                for option in candidate_outbounds(outbound_options)
+                for option in selected_outbounds(config, outbound_options)
                 if (quote := self.quote_for_outbound(browser, config, route, option, url)) is not None
             ]
             return best_quotes_by_airline(quotes)

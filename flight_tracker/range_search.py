@@ -289,6 +289,7 @@ def debug_dir_for(query_id: str, route_id: str) -> Path:
 def range_debug_config(config: dict[str, Any], query_id: str, route: dict[str, Any]) -> dict[str, Any]:
     query_config = deepcopy(config)
     settings = query_config.setdefault("range_search", {})
+    settings["_range_query"] = True
     if settings.get("debug"):
         settings["_debug_dir"] = str(debug_dir_for(query_id, route.get("id", "route")))
     return query_config
