@@ -17,6 +17,8 @@ from flight_tracker.history import (
     update_daily_lowest_csv,
 )
 from flight_tracker.notify import build_message, send_line_message, should_alert
+from flight_tracker.range_search import is_enabled as range_search_enabled
+from flight_tracker.range_search import run_range_search
 from flight_tracker.sources import SOURCE_REGISTRY
 
 
@@ -88,7 +90,18 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
         )
         summary = stats(query_history)
         yesterday = previous_price(query_history)
-        message = build_message(route, quote, query_history, summary, yesterday, alternatives)
+        range_summary = None
+        if range_search_enabled(config):
+            range_summary = run_range_search(config, route, SOURCE_REGISTRY)
+        message = build_message(
+            route,
+            quote,
+            query_history,
+            summary,
+            yesterday,
+            alternatives,
+            range_summary.normalized() if range_summary else None,
+        )
         alert = is_new_daily_low and should_alert(config, route, int(saved_quote["price"]), yesterday)
         line_sent = False
         if not dry_run and config.get("line", {}).get("enabled"):
@@ -105,6 +118,7 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
                 "alternatives": alternatives,
                 "daily_low": saved_quote,
                 "summary": summary,
+                "range_search": range_summary.normalized() if range_summary else None,
                 "message": message,
                 "errors": errors,
             }

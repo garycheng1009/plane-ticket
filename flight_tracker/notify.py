@@ -66,6 +66,15 @@ def display_history_date(value: str | None) -> str:
         return value[5:].replace("-", "/")
 
 
+def display_range_date(value: str | None) -> str:
+    if not value:
+        return "??/??"
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").strftime("%m/%d")
+    except ValueError:
+        return value[5:].replace("-", "/")
+
+
 def format_price(value: int | str | None) -> str:
     if value in (None, ""):
         return "無資料"
@@ -147,6 +156,29 @@ def lowest_blocks(quotes: list[dict[str, Any]]) -> tuple[str, str]:
     return "\n".join(lowest_parts), other_block
 
 
+def range_search_block(range_summary: dict[str, Any] | None) -> str:
+    if not range_summary:
+        return ""
+
+    best_quote = range_summary.get("best_quote")
+    header = (
+        "範圍時段:\n"
+        f"去程:{range_summary.get('departure_start') or '未設定'} ~ {range_summary.get('departure_end') or '未設定'}\n"
+        f"回程:{range_summary.get('return_start') or '未設定'} ~ {range_summary.get('return_end') or '未設定'}"
+    )
+
+    if not best_quote:
+        return f"{header}\n\n查詢失敗，未取得有效價格。"
+
+    return (
+        f"{header}\n\n"
+        f"{display_airline(best_quote.get('airline'))}　"
+        f"{display_range_date(best_quote.get('departure_date'))} ~ {display_range_date(best_quote.get('return_date'))}　"
+        f"{best_quote.get('departure_time') or '未取得'} / {best_quote.get('return_time') or '未取得'}　"
+        f"{format_price(best_quote.get('price'))} 元"
+    )
+
+
 def build_message(
     route: dict[str, Any],
     quote: dict[str, Any],
@@ -154,6 +186,7 @@ def build_message(
     summary: dict[str, Any],
     yesterday: int | None,
     alternatives: list[dict[str, Any]] | None = None,
+    range_summary: dict[str, Any] | None = None,
 ) -> str:
     current = int(quote["price"])
     route_name = quote.get("route_name") or route.get("name") or "未設定"
@@ -163,6 +196,7 @@ def build_message(
     quote_options = alternatives or [quote]
     lowest_block, other_block = lowest_blocks(quote_options)
     other_section = f"\n\n{other_block}" if other_block else ""
+    range_section = f"\n\n{range_search_block(range_summary)}" if range_summary else ""
     history_records = sorted(history, key=lambda item: item["date"])[-7:]
     lowest_price = summary.get("lowest")
     history_lines = "\n".join(history_line(item, lowest_price) for item in history_records)
@@ -173,7 +207,8 @@ def build_message(
         f"往返日期\n"
         f"{departure_date} ~ {return_date}\n\n"
         f"{lowest_block}"
-        f"{other_section}\n\n"
+        f"{other_section}"
+        f"{range_section}\n\n"
         f"────────────────\n\n"
         f"{change_block(current, yesterday)}"
         f"最近30天\n"

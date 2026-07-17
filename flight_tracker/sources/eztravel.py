@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import re
+from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from flight_tracker.models import FlightQuote
+from flight_tracker.range_search import save_debug_artifact, save_debug_manifest
 from flight_tracker.sources.browser_source import BrowserSource, query_url
 from flight_tracker.timezone import now_taipei_iso
 
@@ -95,6 +98,33 @@ def result_start(lines: list[str], marker: str) -> int:
 
 def body_lines(page: Any) -> list[str]:
     return [line.strip() for line in page.locator("body").inner_text(timeout=10000).splitlines() if line.strip()]
+
+
+def debug_artifact_base(config: dict[str, Any], route: dict[str, Any], stage: str) -> Path | None:
+    debug_dir = (config.get("range_search") or {}).get("_debug_dir")
+    if not debug_dir:
+        return None
+    trip = config["trip"]
+    stem = f"{route['id']}_{trip['departure_date']}_{trip['return_date']}_{stage}"
+    return Path(debug_dir) / stem
+
+
+def save_page_debug(page: Any, config: dict[str, Any], route: dict[str, Any], stage: str, payload: dict[str, Any]) -> dict[str, str]:
+    base = debug_artifact_base(config, route, stage)
+    if not base:
+        return {"debug_screenshot": "", "debug_html": "", "debug_dom": ""}
+    screenshot_path = save_debug_artifact(base.with_suffix(".png"), page.screenshot(full_page=True))
+    html_path = save_debug_artifact(base.with_suffix(".html"), page.content())
+    dom_path = save_debug_manifest(
+        base.with_suffix(".json"),
+        {
+            "url": page.url,
+            "departure_date": config["trip"].get("departure_date"),
+            "return_date": config["trip"].get("return_date"),
+            **payload,
+        },
+    )
+    return {"debug_screenshot": screenshot_path, "debug_html": html_path, "debug_dom": dom_path}
 
 
 def scrolled_body_lines(page: Any, steps: int = 8) -> list[str]:
@@ -266,6 +296,17 @@ class EzTravelSource(BrowserSource):
                 [str(outbound["airline"])],
                 config["trip"].get("return_time"),
             )
+            debug_paths = save_page_debug(
+                page,
+                config,
+                route,
+                f"return_{outbound['airline']}_{outbound['time']}",
+                {
+                    "requested_outbound": outbound,
+                    "parsed_return_options": return_options,
+                    "body_lines": return_lines,
+                },
+            )
             return_airline = outbound["airline"]
             return_time = None
             final_price = int(outbound["price"])
@@ -294,39 +335,82 @@ class EzTravelSource(BrowserSource):
                 return_time=return_time,
                 fetched_at=now_taipei_iso(),
                 booking_url=page.url,
+                debug_screenshot=debug_paths["debug_screenshot"],
+                debug_html=debug_paths["debug_html"],
+                debug_dom=debug_paths["debug_dom"],
             )
         except Exception:
             return None
         finally:
             page.close()
 
+    def search_with_browser(self, browser: Any, config: dict[str, Any], route: dict[str, Any]) -> list[FlightQuote]:
+        page = browser.new_page(locale="zh-TW", timezone_id="Asia/Taipei", viewport={"width": 1280, "height": 720})
+        try:
+            url = self.build_url(config, route)
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(18000)
+            lines = scrolled_body_lines(page)
+            requested = config.get("airlines", {}).get("include") or []
+            excluded = set(config.get("airlines", {}).get("exclude") or [])
+            requested = [airline for airline in requested if airline not in excluded]
+            outbound_options = flight_card_options(
+                lines,
+                result_start(lines, "去程:"),
+                requested,
+                config["trip"].get("outbound_time"),
+            )
+            save_page_debug(
+                page,
+                config,
+                route,
+                "outbound",
+                {
+                    "parsed_outbound_options": outbound_options,
+                    "body_lines": lines,
+                },
+            )
+            if not outbound_options:
+                return []
+
+            quotes = [
+                quote
+                for option in candidate_outbounds(outbound_options)
+                if (quote := self.quote_for_outbound(browser, config, route, option, url)) is not None
+            ]
+            return best_quotes_by_airline(quotes)
+        finally:
+            page.close()
+
+    def search_range_dates(
+        self,
+        config: dict[str, Any],
+        route: dict[str, Any],
+        date_pairs: list[tuple[str, str]],
+    ) -> list[tuple[str, str, list[FlightQuote], Exception | None, str]]:
+        results = []
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            try:
+                for departure_date, return_date in date_pairs:
+                    started_at = now_taipei_iso()
+                    query_config = deepcopy(config)
+                    query_config["trip"]["departure_date"] = departure_date
+                    query_config["trip"]["return_date"] = return_date
+                    try:
+                        quotes = self.search_with_browser(browser, query_config, route)
+                        results.append((departure_date, return_date, quotes, None, started_at))
+                    except Exception as exc:
+                        results.append((departure_date, return_date, [], exc, started_at))
+            finally:
+                browser.close()
+        return results
+
     def search(self, config: dict[str, Any], route: dict[str, Any]) -> list[FlightQuote]:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page(locale="zh-TW", timezone_id="Asia/Taipei", viewport={"width": 1280, "height": 720})
             try:
-                url = self.build_url(config, route)
-                page.goto(url, wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_timeout(18000)
-                lines = scrolled_body_lines(page)
-                requested = config.get("airlines", {}).get("include") or []
-                excluded = set(config.get("airlines", {}).get("exclude") or [])
-                requested = [airline for airline in requested if airline not in excluded]
-                outbound_options = flight_card_options(
-                    lines,
-                    result_start(lines, "去程:"),
-                    requested,
-                    config["trip"].get("outbound_time"),
-                )
-                if not outbound_options:
-                    return []
-
-                quotes = [
-                    quote
-                    for option in candidate_outbounds(outbound_options)
-                    if (quote := self.quote_for_outbound(browser, config, route, option, url)) is not None
-                ]
-                return best_quotes_by_airline(quotes)
+                return self.search_with_browser(browser, config, route)
             except PlaywrightTimeoutError:
                 return []
             finally:

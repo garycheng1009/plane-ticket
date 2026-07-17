@@ -73,6 +73,15 @@
     ],
     "fallback_to_mock": false
   },
+  "range_search": {
+    "enabled": false,
+    "departure_start_date": "2027-01-30",
+    "departure_end_date": "2027-01-31",
+    "return_start_date": "2027-02-04",
+    "return_end_date": "2027-02-09",
+    "debug": false,
+    "success_warning_threshold": 0.5
+  },
   "alerts": {
     "price_drop_enabled": true,
     "price_rise_enabled": true,

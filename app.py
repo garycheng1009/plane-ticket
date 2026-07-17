@@ -10,6 +10,7 @@ import streamlit as st
 
 from flight_tracker.config import DEFAULT_CONFIG, load_config, save_config
 from flight_tracker.notify import send_line_message
+from flight_tracker.range_search import validate_range_config
 
 
 def run_tracker_subprocess(route_id: str, dry_run: bool, line_token: str = "") -> list[dict]:
@@ -27,6 +28,13 @@ def run_tracker_subprocess(route_id: str, dry_run: bool, line_token: str = "") -
     return json.loads(completed.stdout)
 
 
+def config_date(value: str | None, fallback: str) -> date:
+    try:
+        return date.fromisoformat(value or fallback)
+    except ValueError:
+        return date.fromisoformat(fallback)
+
+
 st.set_page_config(page_title="機票追蹤器", layout="centered")
 st.title("機票價格追蹤器")
 
@@ -41,6 +49,23 @@ trip["departure_date"] = st.date_input("去程日期", departure_default).isofor
 trip["return_date"] = st.date_input("回程日期", return_default).isoformat()
 trip["direct_only"] = st.checkbox("只看直飛", trip.get("direct_only", True))
 passengers = trip.setdefault("passengers", {"adults": 1, "children": 0, "infants": 0})
+
+range_settings = config.setdefault("range_search", {})
+st.subheader("日期範圍最低價查詢")
+range_settings["enabled"] = st.checkbox("啟用日期範圍查詢", bool(range_settings.get("enabled", False)))
+range_departure_start = config_date(range_settings.get("departure_start_date"), trip["departure_date"])
+range_departure_end = config_date(range_settings.get("departure_end_date"), trip["departure_date"])
+range_return_start = config_date(range_settings.get("return_start_date"), trip["return_date"])
+range_return_end = config_date(range_settings.get("return_end_date"), trip["return_date"])
+range_cols = st.columns(2)
+with range_cols[0]:
+    range_settings["departure_start_date"] = st.date_input("去程開始日期", range_departure_start).isoformat()
+    range_settings["departure_end_date"] = st.date_input("去程結束日期", range_departure_end).isoformat()
+with range_cols[1]:
+    range_settings["return_start_date"] = st.date_input("回程開始日期", range_return_start).isoformat()
+    range_settings["return_end_date"] = st.date_input("回程結束日期", range_return_end).isoformat()
+range_settings["debug"] = st.checkbox("保存範圍查詢 debug 檔案", bool(range_settings.get("debug", False)))
+range_settings["success_warning_threshold"] = float(range_settings.get("success_warning_threshold", 0.5))
 
 passenger_cols = st.columns(3)
 passengers["adults"] = passenger_cols[0].number_input(
@@ -136,6 +161,12 @@ selected_route_name = st.selectbox("測試航線", list(route_options.keys()))
 dry_run = st.checkbox("測試模式，不發 LINE", value=True)
 
 if st.button("開始查價"):
+    if config.get("range_search", {}).get("enabled"):
+        try:
+            validate_range_config(config)
+        except ValueError as exc:
+            st.error(f"日期範圍設定錯誤：{exc}")
+            st.stop()
     save_config(config)
     with st.spinner("查價中，ezTravel 通常需要 20-40 秒..."):
         results = run_tracker_subprocess(route_options[selected_route_name], dry_run=dry_run, line_token=local_line_token)
@@ -166,6 +197,9 @@ if st.button("開始查價"):
         if result.get("errors"):
             with st.expander("其他來源狀態"):
                 st.code("\n".join(result["errors"]))
+        if result.get("range_search"):
+            st.info(result["range_search"]["log"])
+            st.caption(f"範圍查詢明細：{result['range_search']['detail_path']}")
 
 st.subheader("目前設定")
 st.code(json.dumps(config, ensure_ascii=False, indent=2), language="json")

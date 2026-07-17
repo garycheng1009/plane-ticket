@@ -26,6 +26,9 @@ class FlightQuote:
     return_time: str | None = None
     fetched_at: str = ""
     booking_url: str = ""
+    debug_screenshot: str = ""
+    debug_html: str = ""
+    debug_dom: str = ""
 
     def normalized(self) -> dict:
         data = self.__dict__.copy()
