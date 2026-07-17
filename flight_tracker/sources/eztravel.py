@@ -105,7 +105,8 @@ def debug_artifact_base(config: dict[str, Any], route: dict[str, Any], stage: st
     if not debug_dir:
         return None
     trip = config["trip"]
-    stem = f"{route['id']}_{trip['departure_date']}_{trip['return_date']}_{stage}"
+    safe_stage = re.sub(r'[<>:"/\\|?*\s]+', "-", stage).strip("-")
+    stem = f"{route['id']}_{trip['departure_date']}_{trip['return_date']}_{safe_stage}"
     return Path(debug_dir) / stem
 
 

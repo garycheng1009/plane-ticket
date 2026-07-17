@@ -85,6 +85,20 @@ class InvalidDateSource(FakeSource):
         ]
 
 
+class MissingReturnTimeSource(FakeSource):
+    def search(self, config: dict, route: dict) -> list[FlightQuote]:
+        quote = super().search(config, route)[0]
+        return [
+            FlightQuote(
+                **{
+                    **quote.normalized(),
+                    "return_time": "",
+                    "fetched_at": "",
+                }
+            )
+        ]
+
+
 class RangeSearchTests(unittest.TestCase):
     def test_generate_date_pairs_only_return_after_departure(self) -> None:
         pairs = range_search.generate_date_pairs(
@@ -167,6 +181,24 @@ class RangeSearchTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(rows[0]["status"], range_search.PARSE_ERROR)
             self.assertEqual(rows[0]["price"], "18000")
+
+    def test_missing_return_time_becomes_parse_error(self) -> None:
+        config = base_config()
+        config["range_search"]["departure_end_date"] = "2027-01-30"
+        config["range_search"]["return_start_date"] = "2027-02-05"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_dir = range_search.RANGE_QUERY_DIR
+            range_search.RANGE_QUERY_DIR = Path(temp_dir)
+            try:
+                summary = range_search.run_range_search(config, ROUTE, {"fake": MissingReturnTimeSource}, query_id="20260717_110202")
+            finally:
+                range_search.RANGE_QUERY_DIR = original_dir
+
+            self.assertIsNone(summary.best_quote)
+            with Path(summary.detail_path).open("r", encoding="utf-8-sig", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            self.assertEqual(rows[0]["status"], range_search.PARSE_ERROR)
+            self.assertEqual(rows[0]["error_message"], "return_time cannot be empty.")
 
     def test_old_config_defaults_to_disabled(self) -> None:
         self.assertFalse(range_search.is_enabled({"trip": {}}))

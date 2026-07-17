@@ -195,6 +195,10 @@ def validate_quote(quote: dict[str, Any], departure_date: str, return_date: str)
         return "price must be a positive integer."
     if not str(quote.get("airline") or "").strip():
         return "airline cannot be empty."
+    if not str(quote.get("outbound_time") or "").strip():
+        return "outbound_time cannot be empty."
+    if not str(quote.get("return_time") or "").strip():
+        return "return_time cannot be empty."
     if quote.get("departure_date") != departure_date:
         return "result departure_date does not match requested date."
     if quote.get("return_date") != return_date:
