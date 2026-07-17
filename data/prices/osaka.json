@@ -1,0 +1,41 @@
+[
+  {
+    "date": "2026-07-12",
+    "source": "eztravel",
+    "route_id": "osaka",
+    "route_name": "大阪",
+    "origin": "TPE",
+    "destination": "OSA",
+    "airline": "星宇",
+    "price": 11896,
+    "currency": "TWD",
+    "direct": true,
+    "outbound_time": null,
+    "return_time": null,
+    "fetched_at": "2026-07-12T08:30:31",
+    "booking_url": "https://flight.eztravel.com.tw/tickets-roundtrip-TPE-OSA/?outbounddate=01%2F09%2F2026&inbounddate=06%2F09%2F2026&dport=&aport=&adults=1&children=0&infants=0&direct=true&cabintype=&airline=&searchbox=s"
+  },
+  {
+    "date": "2026-07-13",
+    "source": "eztravel",
+    "route_id": "osaka",
+    "route_name": "大阪",
+    "origin": "TPE",
+    "destination": "OSA",
+    "airline": "華航",
+    "price": 20328,
+    "currency": "TWD",
+    "direct": true,
+    "departure_date": "2027-01-30",
+    "return_date": "2027-02-05",
+    "outbound_time_range": "05:00-14:00",
+    "return_time_range": "12:00-22:00",
+    "passengers": "A2C1I0",
+    "return_airline": "華航",
+    "outbound_time": "09:45",
+    "return_time": "12:45",
+    "fetched_at": "2026-07-13T02:55:18",
+    "booking_url": "https://flight.eztravel.com.tw/tickets-roundtrip-TPE-OSA/?outbounddate=30%2F01%2F2027&inbounddate=05%2F02%2F2027&dport=&aport=&adults=2&children=1&infants=0&direct=true&cabintype=&airline=&searchbox=s",
+    "tracking_key": "TPE|OSA|2027-01-30|2027-02-05|True|05:00-14:00|12:00-22:00|A2C1I0"
+  }
+]
