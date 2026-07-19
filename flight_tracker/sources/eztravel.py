@@ -146,7 +146,7 @@ def scrolled_body_lines(page: Any, steps: int = 8) -> list[str]:
     return all_lines
 
 
-def wait_for_flight_results(page: Any, marker: str, timeout_ms: int = 12000) -> None:
+def wait_for_flight_results(page: Any, marker: str, timeout_ms: int = 3000) -> None:
     try:
         page.wait_for_function(
             """
@@ -155,7 +155,7 @@ def wait_for_flight_results(page: Any, marker: str, timeout_ms: int = 12000) -> 
                 return text.includes(marker) && /\\d{2}:\\d{2}/.test(text) && /TWD\\s*[0-9,]+/.test(text);
             }
             """,
-            marker,
+            arg=marker,
             timeout=timeout_ms,
         )
     except PlaywrightTimeoutError:
