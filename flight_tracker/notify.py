@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from flight_tracker.timezone import to_taipei
+from flight_tracker.timezone import now_taipei, to_taipei
 
 
 AIRLINE_DISPLAY_NAMES = {
@@ -232,6 +232,21 @@ def build_message(
         f"目前　{format_price(current)}\n\n"
         f"近7日每日最低\n"
         f"{history_lines}"
+    )
+
+
+def build_no_quote_message(config: dict[str, Any], route: dict[str, Any], errors: list[str] | None = None) -> str:
+    trip = config.get("trip", {})
+    route_name = route.get("name") or "未設定"
+    error_lines = [line for line in errors or [] if line]
+    detail = "\n".join(error_lines[-5:]) if error_lines else "來源未回傳有效報價。"
+    return (
+        f"查詢時間 {now_taipei().strftime('%Y-%m-%d %H:%M')}\n\n"
+        f"地點:{route_name}\n\n"
+        "往返日期\n"
+        f"{trip.get('departure_date') or '未設定'} ~ {trip.get('return_date') or '未設定'}\n\n"
+        "查詢失敗，未取得有效報價。\n\n"
+        f"{detail}"
     )
 
 

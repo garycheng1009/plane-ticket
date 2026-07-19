@@ -16,7 +16,7 @@ from flight_tracker.history import (
     tracking_key,
     update_daily_lowest_csv,
 )
-from flight_tracker.notify import build_message, send_line_message, should_alert
+from flight_tracker.notify import build_message, build_no_quote_message, send_line_message, should_alert
 from flight_tracker.range_search import is_enabled as range_search_enabled
 from flight_tracker.range_search import run_range_search
 from flight_tracker.sources import SOURCE_REGISTRY
@@ -69,7 +69,20 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
     for route in enabled_routes(config, route_id):
         quote, errors, alternatives = best_quote(config, route)
         if not quote:
-            results.append({"route": route["name"], "status": "no_quote", "errors": errors})
+            message = build_no_quote_message(config, route, errors)
+            line_sent = False
+            if not dry_run and config.get("line", {}).get("enabled"):
+                send_line_message(message, config)
+                line_sent = True
+            results.append(
+                {
+                    "route": route["name"],
+                    "status": "no_quote",
+                    "line_sent": line_sent,
+                    "message": message,
+                    "errors": errors,
+                }
+            )
             continue
 
         before_history = load_history(route["id"])
@@ -134,7 +147,10 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--route", help="Only run one route id, for example tokyo or osaka.")
     args = parser.parse_args()
-    print(json.dumps(run(args.config, args.dry_run, args.route), ensure_ascii=False, indent=2))
+    results = run(args.config, args.dry_run, args.route)
+    print(json.dumps(results, ensure_ascii=False, indent=2))
+    if any(result.get("status") != "ok" for result in results):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

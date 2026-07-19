@@ -5,7 +5,7 @@ import sys
 import types
 
 sys.modules.setdefault("requests", types.SimpleNamespace(post=None))
-from flight_tracker.notify import build_message
+from flight_tracker.notify import build_message, build_no_quote_message
 
 
 ROUTE = {"id": "tokyo", "name": "東京"}
@@ -136,6 +136,17 @@ class NotifyTests(unittest.TestCase):
         message = build_message(ROUTE, QUOTE, HISTORY, SUMMARY, None, [QUOTE], range_summary)
         self.assertIn("01/30　該日期未取得有效報價", message)
         self.assertIn("星宇航空　01/31 ~ 02/09　10:10 / 13:15　21,831 元", message)
+
+    def test_no_quote_message_includes_route_dates_and_errors(self) -> None:
+        message = build_no_quote_message(
+            {"trip": {"departure_date": "2027-01-30", "return_date": "2027-02-05"}},
+            ROUTE,
+            ["eztravel: timeout"],
+        )
+        self.assertIn("地點:東京", message)
+        self.assertIn("2027-01-30 ~ 2027-02-05", message)
+        self.assertIn("查詢失敗，未取得有效報價。", message)
+        self.assertIn("eztravel: timeout", message)
 
 
 if __name__ == "__main__":
