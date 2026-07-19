@@ -161,11 +161,26 @@ def range_search_block(range_summary: dict[str, Any] | None) -> str:
         return ""
 
     best_quote = range_summary.get("best_quote")
+    departure_best_quotes = range_summary.get("departure_best_quotes") or []
     header = (
         "範圍時段:\n"
         f"去程:{range_summary.get('departure_start') or '未設定'} ~ {range_summary.get('departure_end') or '未設定'}\n"
         f"回程:{range_summary.get('return_start') or '未設定'} ~ {range_summary.get('return_end') or '未設定'}"
     )
+
+    if departure_best_quotes:
+        lines = []
+        for quote in departure_best_quotes:
+            if not quote.get("success"):
+                lines.append(f"{display_range_date(quote.get('departure_date'))}　{quote.get('error') or '該日期未取得有效報價'}")
+                continue
+            lines.append(
+                f"{display_airline(quote.get('airline'))}　"
+                f"{display_range_date(quote.get('departure_date'))} ~ {display_range_date(quote.get('return_date'))}　"
+                f"{quote.get('departure_time') or '未取得'} / {quote.get('return_time') or '未取得'}　"
+                f"{format_price(quote.get('price'))} 元"
+            )
+        return f"{header}\n\n" + "\n".join(lines)
 
     if not best_quote:
         return f"{header}\n\n查詢失敗，未取得有效價格。"

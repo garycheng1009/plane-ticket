@@ -146,6 +146,22 @@ def scrolled_body_lines(page: Any, steps: int = 8) -> list[str]:
     return all_lines
 
 
+def wait_for_flight_results(page: Any, marker: str, timeout_ms: int = 12000) -> None:
+    try:
+        page.wait_for_function(
+            """
+            (marker) => {
+                const text = document.body ? document.body.innerText || '' : '';
+                return text.includes(marker) && /\\d{2}:\\d{2}/.test(text) && /TWD\\s*[0-9,]+/.test(text);
+            }
+            """,
+            marker,
+            timeout=timeout_ms,
+        )
+    except PlaywrightTimeoutError:
+        pass
+
+
 def flight_card_options(
     lines: list[str],
     start: int,
@@ -302,7 +318,8 @@ class EzTravelSource(BrowserSource):
             if not clicked:
                 page.locator("text=選擇").nth(int(outbound["choice_index"])).click()
             page.wait_for_timeout(14000)
-            return_lines = scrolled_body_lines(page)
+            wait_for_flight_results(page, "回程:")
+            return_lines = scrolled_body_lines(page, steps=12)
             return_options = flight_card_options(
                 return_lines,
                 result_start(return_lines, "回程:"),
@@ -363,6 +380,7 @@ class EzTravelSource(BrowserSource):
             url = self.build_url(config, route)
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(18000)
+            wait_for_flight_results(page, "去程:")
             lines = scrolled_body_lines(page)
             requested = config.get("airlines", {}).get("include") or []
             excluded = set(config.get("airlines", {}).get("exclude") or [])

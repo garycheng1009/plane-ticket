@@ -100,6 +100,31 @@ class MissingReturnTimeSource(FakeSource):
         ]
 
 
+class PartialResultSource(FakeSource):
+    def search(self, config: dict, route: dict) -> list[FlightQuote]:
+        departure_date = config["trip"]["departure_date"]
+        return_date = config["trip"]["return_date"]
+        if departure_date == "2027-01-30":
+            return []
+        price = 22000 if return_date == "2027-02-04" else 21000
+        return [
+            FlightQuote(
+                source=self.name,
+                route_id=route["id"],
+                route_name=route["name"],
+                origin=config["trip"]["origin"],
+                destination=route["destination"],
+                airline="星宇航空",
+                price=price,
+                departure_date=departure_date,
+                return_date=return_date,
+                outbound_time="10:10",
+                return_time="13:15",
+                booking_url=self.build_url(config, route),
+            )
+        ]
+
+
 class RangeSearchTests(unittest.TestCase):
     def test_generate_date_pairs_only_return_after_departure(self) -> None:
         pairs = range_search.generate_date_pairs(
@@ -158,6 +183,13 @@ class RangeSearchTests(unittest.TestCase):
             self.assertEqual(summary.failed_combinations, 2)
             self.assertEqual(summary.best_quote["departure_date"], "2027-01-31")
             self.assertEqual(summary.best_quote["price"], 17000)
+            self.assertEqual(
+                [(item["departure_date"], item["return_date"], item["price"]) for item in summary.departure_best_quotes],
+                [
+                    ("2027-01-30", "2027-02-05", 18000),
+                    ("2027-01-31", "2027-02-05", 17000),
+                ],
+            )
 
             with Path(summary.detail_path).open("r", encoding="utf-8-sig", newline="") as handle:
                 rows = list(csv.DictReader(handle))
@@ -200,6 +232,36 @@ class RangeSearchTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(rows[0]["status"], range_search.PARSE_ERROR)
             self.assertEqual(rows[0]["error_message"], "return_time cannot be empty.")
+            self.assertEqual(
+                summary.departure_best_quotes,
+                [{"departure_date": "2027-01-30", "success": False, "error": "該日期未取得有效報價"}],
+            )
+
+    def test_run_range_search_keeps_failed_departure_and_other_successes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_dir = range_search.RANGE_QUERY_DIR
+            range_search.RANGE_QUERY_DIR = Path(temp_dir)
+            try:
+                summary = range_search.run_range_search(base_config(), ROUTE, {"fake": PartialResultSource}, query_id="20260717_110203")
+            finally:
+                range_search.RANGE_QUERY_DIR = original_dir
+
+            self.assertEqual(
+                summary.departure_best_quotes,
+                [
+                    {"departure_date": "2027-01-30", "success": False, "error": "該日期未取得有效報價"},
+                    {
+                        "departure_date": "2027-01-31",
+                        "return_date": "2027-02-05",
+                        "airline": "星宇航空",
+                        "departure_time": "10:10",
+                        "return_time": "13:15",
+                        "price": 21000,
+                        "source": "fake",
+                        "success": True,
+                    },
+                ],
+            )
 
     def test_old_config_defaults_to_disabled(self) -> None:
         self.assertFalse(range_search.is_enabled({"trip": {}}))

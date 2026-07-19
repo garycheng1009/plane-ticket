@@ -69,6 +69,74 @@ class NotifyTests(unittest.TestCase):
         self.assertIn("最低價格:", message)
         self.assertIn("查詢失敗，未取得有效價格。", message)
 
+    def test_lowest_block_shows_return_time_when_present(self) -> None:
+        message = build_message(ROUTE, QUOTE, HISTORY, SUMMARY, None, [QUOTE])
+        self.assertIn("國泰航空 12:50 / 15:30　18,682 元", message)
+
+    def test_lowest_block_does_not_borrow_missing_return_time(self) -> None:
+        missing_return = {**QUOTE, "return_time": None}
+        other_quote = {**QUOTE, "airline": "星宇", "price": 20492, "outbound_time": "10:10", "return_time": "13:45"}
+        message = build_message(ROUTE, missing_return, HISTORY, SUMMARY, None, [missing_return, other_quote])
+        self.assertIn("國泰航空 12:50 / 未取得　18,682 元", message)
+        self.assertNotIn("國泰航空 12:50 / 13:45", message)
+
+    def test_range_block_lists_best_quote_for_each_departure_date(self) -> None:
+        range_summary = {
+            "departure_start": "2027-01-30",
+            "departure_end": "2027-01-31",
+            "return_start": "2027-02-06",
+            "return_end": "2027-02-09",
+            "best_quote": {"price": 20830},
+            "departure_best_quotes": [
+                {
+                    "airline": "國泰航空",
+                    "departure_date": "2027-01-30",
+                    "return_date": "2027-02-06",
+                    "departure_time": "12:50",
+                    "return_time": "15:30",
+                    "price": 20830,
+                    "success": True,
+                },
+                {
+                    "airline": "星宇航空",
+                    "departure_date": "2027-01-31",
+                    "return_date": "2027-02-09",
+                    "departure_time": "10:10",
+                    "return_time": "13:15",
+                    "price": 21831,
+                    "success": True,
+                },
+            ],
+        }
+        message = build_message(ROUTE, QUOTE, HISTORY, SUMMARY, None, [QUOTE], range_summary)
+        self.assertIn("國泰航空　01/30 ~ 02/06　12:50 / 15:30　20,830 元", message)
+        self.assertIn("星宇航空　01/31 ~ 02/09　10:10 / 13:15　21,831 元", message)
+        self.assertLess(message.index("01/30 ~ 02/06"), message.index("01/31 ~ 02/09"))
+
+    def test_range_block_keeps_failed_departure_date(self) -> None:
+        range_summary = {
+            "departure_start": "2027-01-30",
+            "departure_end": "2027-01-31",
+            "return_start": "2027-02-06",
+            "return_end": "2027-02-09",
+            "best_quote": {"price": 21831},
+            "departure_best_quotes": [
+                {"departure_date": "2027-01-30", "success": False, "error": "該日期未取得有效報價"},
+                {
+                    "airline": "星宇航空",
+                    "departure_date": "2027-01-31",
+                    "return_date": "2027-02-09",
+                    "departure_time": "10:10",
+                    "return_time": "13:15",
+                    "price": 21831,
+                    "success": True,
+                },
+            ],
+        }
+        message = build_message(ROUTE, QUOTE, HISTORY, SUMMARY, None, [QUOTE], range_summary)
+        self.assertIn("01/30　該日期未取得有效報價", message)
+        self.assertIn("星宇航空　01/31 ~ 02/09　10:10 / 13:15　21,831 元", message)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -84,6 +84,7 @@ class RangeSearchSummary:
     success_combinations: int
     failed_combinations: int
     best_quote: dict[str, Any] | None
+    departure_best_quotes: list[dict[str, Any]]
     detail_path: str
     warning: str = ""
     error: str = ""
@@ -261,6 +262,39 @@ def choose_best(rows: list[RangeQueryRow]) -> RangeQueryRow | None:
     )
 
 
+def choose_best_by_departure(rows: list[RangeQueryRow], departure_dates: Iterable[str]) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    for departure_date in departure_dates:
+        candidates = [
+            row
+            for row in rows
+            if row.departure_date == departure_date
+            and row.status == SUCCESS
+            and positive_price(row.price) is not None
+        ]
+        if not candidates:
+            results.append(
+                {
+                    "departure_date": departure_date,
+                    "success": False,
+                    "error": "該日期未取得有效報價",
+                }
+            )
+            continue
+        best = min(
+            candidates,
+            key=lambda row: (
+                int(row.price),
+                row.return_date,
+                row.airline,
+                row.departure_time,
+                row.return_time,
+            ),
+        )
+        results.append(row_to_best_quote(best))
+    return results
+
+
 def row_to_best_quote(row: RangeQueryRow) -> dict[str, Any]:
     return {
         "departure_date": row.departure_date,
@@ -397,6 +431,7 @@ def run_range_search(
             success_combinations=0,
             failed_combinations=0,
             best_quote=None,
+            departure_best_quotes=[],
             detail_path=str(detail_path),
             error=str(exc),
         )
@@ -488,6 +523,8 @@ def run_range_search(
                 )
 
     best = choose_best(rows)
+    departure_dates = [day.isoformat() for day in date_range(departure_start, departure_end)]
+    departure_best_quotes = choose_best_by_departure(rows, departure_dates)
     if best:
         rows = [
             RangeQueryRow(**{**asdict(row), "selected_lowest": "YES" if row == best else ""})
@@ -516,6 +553,7 @@ def run_range_search(
         success_combinations=success_count,
         failed_combinations=failed_count,
         best_quote=row_to_best_quote(best) if best else None,
+        departure_best_quotes=departure_best_quotes,
         detail_path=str(detail_path),
         warning=warning,
     )
