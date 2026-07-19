@@ -8,7 +8,7 @@ from pathlib import Path
 
 import flight_tracker.range_search as range_search
 from flight_tracker.models import FlightQuote
-from flight_tracker.sources.eztravel import selected_outbounds
+from flight_tracker.sources.eztravel import flight_options_from_cards, selected_outbounds
 
 
 ROUTE = {"id": "tokyo", "name": "東京", "destination": "TYO"}
@@ -283,6 +283,24 @@ class RangeSearchTests(unittest.TestCase):
         ]
         selected = selected_outbounds({}, options)
         self.assertEqual({item["airline"] for item in selected}, {"國泰", "星宇", "華航"})
+
+    def test_eztravel_card_parser_does_not_match_tigerair_as_china_airlines(self) -> None:
+        cards = [
+            {
+                "text": "台灣虎航\n14:35\nHND T3\n18:05\nTPE T1\nTWD 19,426\n選擇",
+                "choice_index": 0,
+            }
+        ]
+        self.assertEqual(flight_options_from_cards(cards, ["華航"]), [])
+
+    def test_eztravel_card_parser_skips_mixed_airline_container(self) -> None:
+        cards = [
+            {
+                "text": "中華航空\n12:35\n已選去程\n台灣虎航\n14:35\nTWD 19,426\n選擇",
+                "choice_index": 0,
+            }
+        ]
+        self.assertEqual(flight_options_from_cards(cards, ["華航"]), [])
 
 
 if __name__ == "__main__":

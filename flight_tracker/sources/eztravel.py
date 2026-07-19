@@ -23,10 +23,18 @@ AIRLINE_ALIASES = {
     "JAL": ["JAL", "日本航空"],
     "United": ["United", "聯合航空"],
     "Peach": ["Peach", "樂桃航空"],
+    "虎航": ["虎航", "台灣虎航", "Tigerair", "Tigerair Taiwan"],
 }
 
 
 ALL_AIRLINE_NAMES = {alias for aliases in AIRLINE_ALIASES.values() for alias in aliases}
+
+
+def airline_for_line(line: str) -> str | None:
+    for airline, aliases in AIRLINE_ALIASES.items():
+        if line in aliases:
+            return airline
+    return None
 
 
 def display_airline_name(airline: str) -> str:
@@ -201,6 +209,102 @@ def flight_card_options(
     return options
 
 
+def selectable_card_texts(page: Any) -> list[dict[str, Any]]:
+    return list(
+        page.evaluate(
+            """
+            () => {
+                const buttons = Array.from(document.querySelectorAll('button, a, div, span'))
+                    .filter((el) => (el.textContent || '').trim() === '選擇');
+                const cards = [];
+                buttons.forEach((button, index) => {
+                    let selected = '';
+                    let node = button;
+                    for (let depth = 0; node && depth < 12; depth += 1, node = node.parentElement) {
+                        const text = (node.innerText || node.textContent || '').trim();
+                        const selectCount = (text.match(/選擇/g) || []).length;
+                        if (
+                            text.length < 700
+                            && selectCount <= 1
+                            && /TWD\\s*[0-9,]+/.test(text)
+                            && /\\d{2}:\\d{2}/.test(text)
+                        ) {
+                            selected = text;
+                            break;
+                        }
+                    }
+                    if (selected) {
+                        cards.push({ text: selected, choice_index: index });
+                    }
+                });
+                return cards;
+            }
+            """
+        )
+    )
+
+
+def flight_options_from_cards(
+    cards: list[dict[str, Any]],
+    requested: list[str],
+    time_range: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    requested_aliases = {airline: AIRLINE_ALIASES.get(airline, [airline]) for airline in requested}
+    options: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, int]] = set()
+    for card in cards:
+        lines = [line.strip() for line in str(card.get("text") or "").splitlines() if line.strip()]
+        airlines_in_card = {airline for line in lines if (airline := airline_for_line(line))}
+        if len(airlines_in_card) > 1:
+            continue
+        for index, line in enumerate(lines):
+            if line not in ALL_AIRLINE_NAMES:
+                continue
+            price = price_from_lines(lines, index)
+            flight_time = first_time_from_lines(lines, index)
+            if not price or not flight_time or not in_time_range(flight_time, time_range):
+                continue
+            for airline, aliases in requested_aliases.items():
+                if line in aliases:
+                    key = (airline, flight_time, price)
+                    if key in seen:
+                        break
+                    seen.add(key)
+                    options.append(
+                        {
+                            "airline": airline,
+                            "price": price,
+                            "time": flight_time,
+                            "choice_index": int(card.get("choice_index", len(options))),
+                        }
+                    )
+                    break
+    return options
+
+
+def selectable_flight_card_options(
+    page: Any,
+    requested: list[str],
+    time_range: dict[str, str] | None = None,
+    steps: int = 8,
+) -> list[dict[str, Any]]:
+    cards: list[dict[str, Any]] = []
+    seen_texts: set[str] = set()
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(800)
+    for _ in range(steps):
+        for card in selectable_card_texts(page):
+            text = str(card.get("text") or "")
+            if text and text not in seen_texts:
+                seen_texts.add(text)
+                cards.append(card)
+        page.evaluate("window.scrollBy(0, Math.floor(window.innerHeight * 0.85))")
+        page.wait_for_timeout(900)
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(500)
+    return flight_options_from_cards(cards, requested, time_range)
+
+
 def click_matching_choice(page: Any, option: dict[str, Any]) -> bool:
     airline = display_airline_name(str(option["airline"]))
     price = f"TWD{int(option['price']):,}"
@@ -320,11 +424,11 @@ class EzTravelSource(BrowserSource):
             page.wait_for_timeout(14000)
             wait_for_flight_results(page, "回程:")
             return_lines = scrolled_body_lines(page, steps=12)
-            return_options = flight_card_options(
-                return_lines,
-                result_start(return_lines, "回程:"),
+            return_options = selectable_flight_card_options(
+                page,
                 [str(outbound["airline"])],
                 config["trip"].get("return_time"),
+                steps=12,
             )
             debug_paths = save_page_debug(
                 page,
@@ -385,12 +489,18 @@ class EzTravelSource(BrowserSource):
             requested = config.get("airlines", {}).get("include") or []
             excluded = set(config.get("airlines", {}).get("exclude") or [])
             requested = [airline for airline in requested if airline not in excluded]
-            outbound_options = flight_card_options(
-                lines,
-                result_start(lines, "去程:"),
+            outbound_options = selectable_flight_card_options(
+                page,
                 requested,
                 config["trip"].get("outbound_time"),
             )
+            if not outbound_options:
+                outbound_options = flight_card_options(
+                    lines,
+                    result_start(lines, "去程:"),
+                    requested,
+                    config["trip"].get("outbound_time"),
+                )
             save_page_debug(
                 page,
                 config,
