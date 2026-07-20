@@ -8,7 +8,7 @@ from pathlib import Path
 
 import flight_tracker.range_search as range_search
 from flight_tracker.models import FlightQuote
-from flight_tracker.sources.eztravel import flight_options_from_cards, selected_outbounds
+from flight_tracker.sources.eztravel import final_price_for_return, flight_options_from_cards, selected_outbounds
 
 
 ROUTE = {"id": "tokyo", "name": "東京", "destination": "TYO"}
@@ -301,6 +301,15 @@ class RangeSearchTests(unittest.TestCase):
             }
         ]
         self.assertEqual(flight_options_from_cards(cards, ["華航"]), [])
+
+    def test_eztravel_uses_same_airline_return_price_over_mixed_outbound_price(self) -> None:
+        outbound = {"airline": "華航", "price": 19426, "time": "12:35"}
+        best_return = {"airline": "華航", "price": 26122, "time": "14:15"}
+        self.assertEqual(final_price_for_return(outbound, best_return), 26122)
+
+    def test_eztravel_keeps_outbound_price_when_return_is_missing(self) -> None:
+        outbound = {"airline": "華航", "price": 19426, "time": "12:35"}
+        self.assertEqual(final_price_for_return(outbound, None), 19426)
 
 
 if __name__ == "__main__":

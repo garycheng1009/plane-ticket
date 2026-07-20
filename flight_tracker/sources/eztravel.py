@@ -381,6 +381,12 @@ def best_quotes_by_airline(quotes: list[FlightQuote]) -> list[FlightQuote]:
     return sorted(best.values(), key=lambda quote: quote.price)
 
 
+def final_price_for_return(outbound: dict[str, Any], best_return: dict[str, Any] | None) -> int:
+    if best_return:
+        return int(best_return["price"])
+    return int(outbound["price"])
+
+
 class EzTravelSource(BrowserSource):
     name = "eztravel"
     start_url = "https://flight.eztravel.com.tw"
@@ -448,7 +454,7 @@ class EzTravelSource(BrowserSource):
                 best_return = min(return_options, key=lambda item: int(item["price"]))
                 return_airline = best_return["airline"]
                 return_time = best_return["time"]
-                final_price = min(final_price, int(best_return["price"]))
+                final_price = final_price_for_return(outbound, best_return)
 
             return FlightQuote(
                 source=self.name,
