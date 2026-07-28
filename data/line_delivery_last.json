@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-07-28 20:37:51",
+  "results": [
+    {
+      "recipient": "U1383a74954e049b155d04d0c997bba66",
+      "ok": false,
+      "status_code": 429,
+      "response": "{\"message\":\"You have reached your monthly limit.\"}",
+      "error": "429 Client Error: Too Many Requests for url: https://api.line.me/v2/bot/message/push"
+    },
+    {
+      "recipient": "U5b13e95b4fee75279c75fb0c6e058400",
+      "ok": false,
+      "status_code": 429,
+      "response": "{\"message\":\"You have reached your monthly limit.\"}",
+      "error": "429 Client Error: Too Many Requests for url: https://api.line.me/v2/bot/message/push"
+    }
+  ]
+}
