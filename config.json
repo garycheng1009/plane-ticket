@@ -68,13 +68,12 @@
   },
   "sources": {
     "enabled": [
-      "eztravel",
-      "skyscanner"
+      "eztravel"
     ],
     "fallback_to_mock": false
   },
   "range_search": {
-    "enabled": true,
+    "enabled": false,
     "departure_start_date": "2027-01-30",
     "departure_end_date": "2027-01-31",
     "return_start_date": "2027-02-06",
