@@ -1,5 +1,17 @@
 {
-  "checked_at": "2026-07-28 22:43:16",
+  "checked_at": "2026-07-28 22:55:07",
+  "quota": {
+    "limit": {
+      "ok": true,
+      "status_code": 200,
+      "response": "{\"type\":\"limited\",\"value\":200}"
+    },
+    "consumption": {
+      "ok": true,
+      "status_code": 200,
+      "response": "{\"totalUsage\":200}"
+    }
+  },
   "results": [
     {
       "recipient": "Ca1bd8c0a9fd603f418c52ec0ec65bba6",
