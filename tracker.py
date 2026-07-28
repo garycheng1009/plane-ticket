@@ -139,6 +139,10 @@ def run(config_path: str, dry_run: bool = False, route_id: str | None = None) ->
     return results
 
 
+def has_fatal_error(results: list[dict[str, Any]]) -> bool:
+    return any(result.get("status") == "error" for result in results)
+
+
 def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -149,7 +153,7 @@ def main() -> None:
     args = parser.parse_args()
     results = run(args.config, args.dry_run, args.route)
     print(json.dumps(results, ensure_ascii=False, indent=2))
-    if any(result.get("status") != "ok" for result in results):
+    if has_fatal_error(results):
         sys.exit(1)
 
 

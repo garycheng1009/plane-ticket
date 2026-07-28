@@ -22,7 +22,16 @@ jobs:
       - name: Run tracker
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-        run: python tracker.py --config config.json
+        shell: bash
+        run: |
+          set -o pipefail
+          python tracker.py --config config.json 2>&1 | tee tracker-output.log
+      - name: Upload tracker output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracker-output
+          path: tracker-output.log
       - name: Commit price history
         run: |
           git config user.name "github-actions[bot]"
