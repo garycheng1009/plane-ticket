@@ -268,12 +268,13 @@ def should_alert(config: dict[str, Any], route: dict[str, Any], current: int, ye
     return False
 
 
-def write_line_delivery(results: list[dict[str, Any]]) -> None:
+def write_line_delivery(results: list[dict[str, Any]], quota: dict[str, Any] | None = None) -> None:
     LINE_DELIVERY_PATH.parent.mkdir(parents=True, exist_ok=True)
     LINE_DELIVERY_PATH.write_text(
         json.dumps(
             {
                 "checked_at": now_taipei().strftime("%Y-%m-%d %H:%M:%S"),
+                "quota": quota or {},
                 "results": results,
             },
             ensure_ascii=False,
@@ -281,6 +282,25 @@ def write_line_delivery(results: list[dict[str, Any]]) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def get_line_quota(channel_token: str) -> dict[str, Any]:
+    headers = {"Authorization": f"Bearer {channel_token}"}
+    quota: dict[str, Any] = {}
+    for key, url in {
+        "limit": "https://api.line.me/v2/bot/message/quota",
+        "consumption": "https://api.line.me/v2/bot/message/quota/consumption",
+    }.items():
+        try:
+            response = requests.get(url, headers=headers, timeout=20)
+            quota[key] = {
+                "ok": response.ok,
+                "status_code": response.status_code,
+                "response": response.text,
+            }
+        except Exception as exc:
+            quota[key] = {"ok": False, "error": str(exc)}
+    return quota
 
 
 def send_line_message(message: str, config: dict[str, Any]) -> None:
@@ -294,6 +314,7 @@ def send_line_message(message: str, config: dict[str, Any]) -> None:
     if channel_token and recipients:
         failures = []
         delivery_results = []
+        quota = get_line_quota(channel_token)
         for recipient in recipients:
             try:
                 response = requests.post(
@@ -324,7 +345,7 @@ def send_line_message(message: str, config: dict[str, Any]) -> None:
                     }
                 )
                 failures.append(f"{recipient}: {exc} {response_text}".strip())
-        write_line_delivery(delivery_results)
+        write_line_delivery(delivery_results, quota)
         if failures:
             print("LINE push failed for some recipients: " + " | ".join(failures))
         return

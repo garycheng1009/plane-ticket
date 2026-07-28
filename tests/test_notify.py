@@ -155,9 +155,10 @@ class NotifyTests(unittest.TestCase):
             mock.Mock(raise_for_status=mock.Mock(return_value=None)),
         ]
         with mock.patch("flight_tracker.notify.requests.post", side_effect=responses) as post:
-            with mock.patch("flight_tracker.notify.write_line_delivery"):
-                with mock.patch.dict("flight_tracker.notify.os.environ", {"LINE_CHANNEL_ACCESS_TOKEN": "token"}, clear=True):
-                    send_line_message("hello", {"line": {"enabled": True, "to": "Ubad\nUgood"}})
+            with mock.patch("flight_tracker.notify.get_line_quota", return_value={}):
+                with mock.patch("flight_tracker.notify.write_line_delivery"):
+                    with mock.patch.dict("flight_tracker.notify.os.environ", {"LINE_CHANNEL_ACCESS_TOKEN": "token"}, clear=True):
+                        send_line_message("hello", {"line": {"enabled": True, "to": "Ubad\nUgood"}})
 
         self.assertEqual(post.call_count, 2)
 
