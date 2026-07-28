@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import os
 import re
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import requests
 
 from flight_tracker.timezone import now_taipei, to_taipei
+
+
+LINE_DELIVERY_PATH = Path("data/line_delivery_last.json")
 
 
 AIRLINE_DISPLAY_NAMES = {
@@ -263,6 +268,21 @@ def should_alert(config: dict[str, Any], route: dict[str, Any], current: int, ye
     return False
 
 
+def write_line_delivery(results: list[dict[str, Any]]) -> None:
+    LINE_DELIVERY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    LINE_DELIVERY_PATH.write_text(
+        json.dumps(
+            {
+                "checked_at": now_taipei().strftime("%Y-%m-%d %H:%M:%S"),
+                "results": results,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 def send_line_message(message: str, config: dict[str, Any]) -> None:
     line_config = config.get("line", {})
     if not line_config.get("enabled"):
@@ -273,6 +293,7 @@ def send_line_message(message: str, config: dict[str, Any]) -> None:
     recipients = line_recipients(to)
     if channel_token and recipients:
         failures = []
+        delivery_results = []
         for recipient in recipients:
             try:
                 response = requests.post(
@@ -282,8 +303,28 @@ def send_line_message(message: str, config: dict[str, Any]) -> None:
                     timeout=20,
                 )
                 response.raise_for_status()
+                delivery_results.append(
+                    {
+                        "recipient": recipient,
+                        "ok": True,
+                        "status_code": response.status_code,
+                        "response": response.text,
+                    }
+                )
             except Exception as exc:
-                failures.append(f"{recipient}: {exc}")
+                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                response_text = getattr(getattr(exc, "response", None), "text", "")
+                delivery_results.append(
+                    {
+                        "recipient": recipient,
+                        "ok": False,
+                        "status_code": status_code,
+                        "response": response_text,
+                        "error": str(exc),
+                    }
+                )
+                failures.append(f"{recipient}: {exc} {response_text}".strip())
+        write_line_delivery(delivery_results)
         if failures:
             print("LINE push failed for some recipients: " + " | ".join(failures))
         return
