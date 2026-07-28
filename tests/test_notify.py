@@ -3,9 +3,10 @@ from __future__ import annotations
 import unittest
 import sys
 import types
+from unittest import mock
 
 sys.modules.setdefault("requests", types.SimpleNamespace(post=None))
-from flight_tracker.notify import build_message, build_no_quote_message
+from flight_tracker.notify import build_message, build_no_quote_message, send_line_message
 
 
 ROUTE = {"id": "tokyo", "name": "東京"}
@@ -147,6 +148,17 @@ class NotifyTests(unittest.TestCase):
         self.assertIn("2027-01-30 ~ 2027-02-05", message)
         self.assertIn("查詢失敗，未取得有效報價。", message)
         self.assertIn("eztravel: timeout", message)
+
+    def test_line_push_continues_when_one_recipient_fails(self) -> None:
+        responses = [
+            mock.Mock(raise_for_status=mock.Mock(side_effect=RuntimeError("bad recipient"))),
+            mock.Mock(raise_for_status=mock.Mock(return_value=None)),
+        ]
+        with mock.patch("flight_tracker.notify.requests.post", side_effect=responses) as post:
+            with mock.patch.dict("flight_tracker.notify.os.environ", {"LINE_CHANNEL_ACCESS_TOKEN": "token"}, clear=True):
+                send_line_message("hello", {"line": {"enabled": True, "to": "Ubad\nUgood"}})
+
+        self.assertEqual(post.call_count, 2)
 
 
 if __name__ == "__main__":

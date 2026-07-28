@@ -272,14 +272,20 @@ def send_line_message(message: str, config: dict[str, Any]) -> None:
     to = os.environ.get("LINE_TO") or line_config.get("to") or ""
     recipients = line_recipients(to)
     if channel_token and recipients:
+        failures = []
         for recipient in recipients:
-            response = requests.post(
-                "https://api.line.me/v2/bot/message/push",
-                headers={"Authorization": f"Bearer {channel_token}", "Content-Type": "application/json"},
-                json={"to": recipient, "messages": [{"type": "text", "text": message}]},
-                timeout=20,
-            )
-            response.raise_for_status()
+            try:
+                response = requests.post(
+                    "https://api.line.me/v2/bot/message/push",
+                    headers={"Authorization": f"Bearer {channel_token}", "Content-Type": "application/json"},
+                    json={"to": recipient, "messages": [{"type": "text", "text": message}]},
+                    timeout=20,
+                )
+                response.raise_for_status()
+            except Exception as exc:
+                failures.append(f"{recipient}: {exc}")
+        if failures:
+            print("LINE push failed for some recipients: " + " | ".join(failures))
         return
 
     legacy_token = os.environ.get("LINE_NOTIFY_TOKEN")
