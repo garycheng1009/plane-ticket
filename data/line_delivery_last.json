@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-08-07 19:19:17",
+  "checked_at": "2026-08-07 23:19:09",
   "quota": {
     "limit": {
       "ok": true,
@@ -9,7 +9,7 @@
     "consumption": {
       "ok": true,
       "status_code": 200,
-      "response": "{\"totalUsage\":70}"
+      "response": "{\"totalUsage\":72}"
     }
   },
   "results": [
@@ -17,7 +17,7 @@
       "recipient": "Ca1bd8c0a9fd603f418c52ec0ec65bba6",
       "ok": true,
       "status_code": 200,
-      "response": "{\"sentMessages\":[{\"id\":\"626243566364524619\",\"quoteToken\":\"_2SK9G4F0bLXXLPONbFF1a5VIvZLU2M8sSJ4z6Tk0jMoA1izvlt8sNJoaNg1pToEj3qvlLTTQP7LwjSiT_Rog-ncYOpQX-D-1Zrm8KE6EvIOev7xhMO6Wlaj7eXMvN8G8Ac-P-H-arfu43XbqIsQMA\"}]}"
+      "response": "{\"sentMessages\":[{\"id\":\"626267712905543785\",\"quoteToken\":\"mQQ5bbGzd9zeWmO8sshWQr0GMFkvLd0-kbCG4Dp5gBBeaICDLPXER_6by3DSQbP2JofduZ6K83pAVICJiEYEeaCFUhxmucnWbtIhCN4Ba1TeqrTc-gfFa5BZUfP84RA9znrpHEnUj1NXkDa1o0EBYw\"}]}"
     }
   ]
 }
