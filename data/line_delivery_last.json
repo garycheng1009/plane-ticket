@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-08-31 21:19:23",
+  "checked_at": "2026-09-01 08:19:24",
   "quota": {
     "limit": {
       "ok": true,
@@ -9,16 +9,15 @@
     "consumption": {
       "ok": true,
       "status_code": 200,
-      "response": "{\"totalUsage\":200}"
+      "response": "{\"totalUsage\":0}"
     }
   },
   "results": [
     {
       "recipient": "Ca1bd8c0a9fd603f418c52ec0ec65bba6",
-      "ok": false,
-      "status_code": 429,
-      "response": "{\"message\":\"You have reached your monthly limit.\"}",
-      "error": "429 Client Error: Too Many Requests for url: https://api.line.me/v2/bot/message/push"
+      "ok": true,
+      "status_code": 200,
+      "response": "{\"sentMessages\":[{\"id\":\"629801019190804736\",\"quoteToken\":\"3l8aQk8Q2sUleNtUgnoY_PueAm5Q7VOAA0XdAJPsmOmXkYn1LhedaPGMMdi4UYYg7A949zywrCRNfUL4p5Wb0ydnqL0gAaRjAXIJIIuMgagcGau_wyQi_-ooQLsSMIfX4_CZkL_0ifxZ4-16VlPRJg\"}]}"
     }
   ]
 }
