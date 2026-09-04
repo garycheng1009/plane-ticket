@@ -6,7 +6,7 @@
     "direct_only": true,
     "outbound_time": {
       "from": "05:00",
-      "to": "14:00"
+      "to": "12:00"
     },
     "return_time": {
       "from": "12:00",
@@ -14,7 +14,7 @@
     },
     "passengers": {
       "adults": 2,
-      "children": 1,
+      "children": 0,
       "infants": 0
     }
   },
@@ -59,11 +59,14 @@
     "include": [
       "星宇",
       "華航",
-      "國泰"
+      "國泰",
+      "虎航",
+      "Peach",
+      "酷航",
+      "捷星"
     ],
     "exclude": [
-      "United",
-      "Peach"
+      "United"
     ]
   },
   "sources": {
@@ -73,7 +76,7 @@
     "fallback_to_mock": false
   },
   "range_search": {
-    "enabled": true,
+    "enabled": false,
     "departure_start_date": "2027-01-30",
     "departure_end_date": "2027-01-31",
     "return_start_date": "2027-02-06",

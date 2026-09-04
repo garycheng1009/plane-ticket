@@ -59,11 +59,14 @@
     "include": [
       "星宇",
       "華航",
-      "國泰"
+      "國泰",
+      "虎航",
+      "Peach",
+      "酷航",
+      "捷星"
     ],
     "exclude": [
-      "United",
-      "Peach"
+      "United"
     ]
   },
   "sources": {

@@ -24,6 +24,8 @@ AIRLINE_ALIASES = {
     "United": ["United", "聯合航空"],
     "Peach": ["Peach", "樂桃航空"],
     "虎航": ["虎航", "台灣虎航", "Tigerair", "Tigerair Taiwan"],
+    "酷航": ["酷航", "酷航航空", "Scoot"],
+    "捷星": ["捷星", "捷星航空", "捷星日本", "捷星日本航空", "Jetstar", "Jetstar Japan"],
 }
 
 

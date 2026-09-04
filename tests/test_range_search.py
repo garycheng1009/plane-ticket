@@ -293,6 +293,24 @@ class RangeSearchTests(unittest.TestCase):
         ]
         self.assertEqual(flight_options_from_cards(cards, ["華航"]), [])
 
+    def test_eztravel_card_parser_matches_budget_airlines(self) -> None:
+        cards = [
+            {"text": "台灣虎航\n07:00\nTPE T1\n11:10\nNRT T2\nTWD 12,300\n選擇", "choice_index": 0},
+            {"text": "樂桃航空\n02:25\nTPE T1\n06:35\nHND T3\nTWD 11,800\n選擇", "choice_index": 1},
+            {"text": "酷航\n06:40\nTPE T1\n10:45\nNRT T1\nTWD 13,100\n選擇", "choice_index": 2},
+            {"text": "捷星日本航空\n12:45\nTPE T1\n16:55\nNRT T3\nTWD 12,900\n選擇", "choice_index": 3},
+        ]
+        options = flight_options_from_cards(cards, ["虎航", "Peach", "酷航", "捷星"])
+        self.assertEqual(
+            [(item["airline"], item["time"], item["price"]) for item in options],
+            [
+                ("虎航", "07:00", 12300),
+                ("Peach", "02:25", 11800),
+                ("酷航", "06:40", 13100),
+                ("捷星", "12:45", 12900),
+            ],
+        )
+
     def test_eztravel_card_parser_skips_mixed_airline_container(self) -> None:
         cards = [
             {
