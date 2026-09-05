@@ -1452,5 +1452,31 @@
     "debug_html": "",
     "debug_dom": "",
     "tracking_key": "TPE|TYO|2027-01-30|2027-02-05|True|05:00-12:00|12:00-22:00|A2C0I0"
+  },
+  {
+    "date": "2026-09-05",
+    "source": "eztravel",
+    "route_id": "tokyo",
+    "route_name": "東京",
+    "origin": "TPE",
+    "destination": "TYO",
+    "airline": "虎航",
+    "price": 20447,
+    "currency": "TWD",
+    "direct": true,
+    "departure_date": "2027-01-30",
+    "return_date": "2027-02-05",
+    "outbound_time_range": "05:00-12:00",
+    "return_time_range": "12:00-22:00",
+    "passengers": "A2C0I0",
+    "return_airline": "虎航",
+    "outbound_time": "06:35",
+    "return_time": "18:25",
+    "fetched_at": "2026-09-05T08:03:07",
+    "booking_url": "https://flight.eztravel.com.tw/tickets-roundtrip-TPE-TYO/?outbounddate=30%2F01%2F2027&inbounddate=05%2F02%2F2027&dport=&aport=&adults=2&children=0&infants=0&direct=true&cabintype=&airline=&searchbox=s",
+    "debug_screenshot": "",
+    "debug_html": "",
+    "debug_dom": "",
+    "tracking_key": "TPE|TYO|2027-01-30|2027-02-05|True|05:00-12:00|12:00-22:00|A2C0I0"
   }
 ]
