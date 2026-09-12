@@ -1,0 +1,2 @@
+﻿query_id,route_id,route_name,departure_date,return_date,source,airline,departure_time,return_time,price,status,error_message,query_started_at,query_finished_at,url,debug_screenshot,debug_html,debug_dom,selected_lowest
+20260912_210822,tokyo,東京,2027-01-30,2027-02-04,eztravel,虎航,06:35,20:25,23637,SUCCESS,,2026-09-12T21:08:22,2026-09-12T21:10:02,https://flight.eztravel.com.tw/tickets-roundtrip-TPE-TYO/?outbounddate=30%2F01%2F2027&inbounddate=04%2F02%2F2027&dport=&aport=&adults=2&children=0&infants=0&direct=true&cabintype=&airline=&searchbox=s,,,,YES
